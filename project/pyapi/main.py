@@ -1252,3 +1252,28 @@ async def clear_category(
       result["match_deleted"] = res.deleted_count
 
     return result
+
+@app.get("/db/debug")
+async def python_db_debug():
+    """
+    Direct MongoDB debug route (Python version).
+
+    Returns:
+      - The name of the connected MongoDB database
+      - A list of all collections in that database
+    """
+    try:
+        # db is already defined in your main file:
+        # client = AsyncIOMotorClient(MONGO_URL)
+        # db = client[MONGO_DB]
+        col_cursor = db.list_collection_names()
+        collections = await col_cursor  # resolves async list
+
+        return {
+            "python_db_name": db.name,
+            "collections": collections
+        }
+
+    except Exception as e:
+        print("Python DB debug error:", str(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch DB info from MongoDB")
