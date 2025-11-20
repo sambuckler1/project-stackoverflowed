@@ -906,7 +906,7 @@ async def walmart_scrape(req: WalmartScrapeReq, wm_coll: Optional[str] = Query(N
             print("finished SERP GET")
             items = data.get("organic_results", []) or []
             pages_fetched += 1
-        except HTTPException as e:
+        except Exception as e:
             # Log the full error details
             print("SERPAPI ERROR during walmart_search_page:")
             print(f"  Status: {e.status_code}")
@@ -1253,27 +1253,3 @@ async def clear_category(
 
     return result
 
-@app.get("/db/debug")
-async def python_db_debug():
-    """
-    Direct MongoDB debug route (Python version).
-
-    Returns:
-      - The name of the connected MongoDB database
-      - A list of all collections in that database
-    """
-    try:
-        # db is already defined in your main file:
-        # client = AsyncIOMotorClient(MONGO_URL)
-        # db = client[MONGO_DB]
-        col_cursor = db.list_collection_names()
-        collections = await col_cursor  # resolves async list
-
-        return {
-            "python_db_name": db.name,
-            "collections": collections
-        }
-
-    except Exception as e:
-        print("Python DB debug error:", str(e))
-        raise HTTPException(status_code=500, detail="Failed to fetch DB info from MongoDB")
