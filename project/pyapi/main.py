@@ -403,7 +403,7 @@ async def provider_google_shopping(query: str) -> list[Offer]:
 
     results = data.get("shopping_results") or []
     offers: list[Offer] = []
-
+    print("Number of results:", len(results))
     for r in results:
         price = parse_price(r.get("extracted_price") or r.get("price"))
         if price is None:
@@ -456,7 +456,7 @@ async def provider_google_image(image_url: str) -> list[Offer]:
 
     results = data.get("visual_matches") or []
     offers: list[Offer] = []
-
+    print("Number of results:", len(results))
     for r in results:
         price = parse_price(r.get("price") or r.get("extracted_price"))
         if price is None:
@@ -604,7 +604,7 @@ async def find_deals_by_image(payload: ExtensionFullProduct):
         gshop_offers = await provider_google_shopping(query)
 
     # Combine all possible offers
-    all_offers = (gshop_offers + gimg)[:10]
+    all_offers = (gshop_offers + gimg)
 
     # Score / normalize savings using shared logic
     return await _score_offers_for_extension(payload, all_offers)
