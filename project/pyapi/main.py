@@ -396,10 +396,10 @@ async def provider_google_shopping(query: str) -> list[Offer]:
         },
     )
 
-    print("\n\n===== GOOGLE SHOPPING RAW RESPONSE =====")
-    import json
-    print(json.dumps(data, indent=2))
-    print("========================================\n\n")
+    #print("\n\n===== GOOGLE SHOPPING RAW RESPONSE =====")
+    #import json
+    #print(json.dumps(data, indent=2))
+    #print("========================================\n\n")
 
     results = data.get("shopping_results") or []
     offers: list[Offer] = []
@@ -604,7 +604,7 @@ async def find_deals_by_image(payload: ExtensionFullProduct):
         gshop_offers = await provider_google_shopping(query)
 
     # Combine all possible offers
-    all_offers = (gshop_offers + gimg)[:50]
+    all_offers = (gshop_offers + gimg)[:10]
 
     # Score / normalize savings using shared logic
     return await _score_offers_for_extension(payload, all_offers)
@@ -901,9 +901,7 @@ async def walmart_scrape(req: WalmartScrapeReq, wm_coll: Optional[str] = Query(N
             break
         
         try:
-            print("Starting SERP GET")
             data = await walmart_search_page(req.query, page=pg)
-            print("finished SERP GET")
             items = data.get("organic_results", []) or []
             pages_fetched += 1
         except Exception as e:
@@ -912,9 +910,6 @@ async def walmart_scrape(req: WalmartScrapeReq, wm_coll: Optional[str] = Query(N
             print(f"  Status: {e.status_code}")
             print(f"  Detail: {e.detail}")
 
-            # Optional: print full traceback
-            import traceback
-            traceback.print_exc()
 
             page_errors += 1
             await asyncio.sleep(1.0 + random.random())
