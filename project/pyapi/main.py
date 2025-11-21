@@ -458,7 +458,8 @@ async def provider_google_image(image_url: str) -> list[Offer]:
     offers: list[Offer] = []
     print("Number of results:", len(results))
     for r in results:
-        price = parse_price(r.get("price") or r.get("extracted_price"))
+        price = parse_price(r.get("price") or r.get("extracted_price")) 
+
         if price is None:
             continue
 
@@ -477,6 +478,7 @@ async def provider_google_image(image_url: str) -> list[Offer]:
                 "brand": r.get("source"),  # lens sometimes returns brand here
             }
         )
+    print("Results from provider google image", offers)
     return offers
 
 
