@@ -604,7 +604,7 @@ async def find_deals_by_image(payload: ExtensionFullProduct):
         gshop_offers = await provider_google_shopping(query)
 
     # Combine all possible offers
-    all_offers = wm_offers + gshop_offers + gimg
+    all_offers = (wm_offers + gshop_offers + gimg)[:50]
 
     # Score / normalize savings using shared logic
     return await _score_offers_for_extension(payload, all_offers)
