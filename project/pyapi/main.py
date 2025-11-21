@@ -341,49 +341,6 @@ def sizes_compatible(wm_title: str, amz_title: str, threshold: float = 0.85) -> 
 # ---------------------------
 
 
-async def provider_walmart(query: str, *, brand: Optional[str]) -> list[Offer]:
-    data = await walmart_search_page(query, page=1)
-    items = data.get("organic_results") or []
-
-    offers: list[Offer] = []
-
-    for it in items:
-        po = it.get("primary_offer") or {}
-        price = parse_price(
-            po.get("offer_price") or po.get("price") or it.get("price")
-        )
-        if price is None:
-            continue
-
-        title = it.get("title") or ""
-        pid = it.get("product_id")
-        raw_link = it.get("link") or ""
-
-        # Fall back to a stable Walmart URL if needed
-        if not raw_link and pid:
-            raw_link = f"https://www.walmart.com/ip/{pid}"
-        if not raw_link and title:
-            raw_link = f"https://www.walmart.com/search?q={quote_plus(title)}"
-
-        # If we *still* don't have a link, skip this offer
-        if not raw_link:
-            continue
-
-        offers.append(
-            {
-                "merchant": "walmart",
-                "source_domain": extract_domain(raw_link) or "walmart.com",
-                "title": title,
-                "price": float(price),
-                "url": raw_link,
-                "thumbnail": it.get("thumbnail"),
-                "brand": it.get("brand"),
-            }
-        )
-
-    return offers
-
-
 async def provider_google_shopping(query: str) -> list[Offer]:
     data = await serp_get(
         "https://serpapi.com/search.json",
@@ -396,35 +353,18 @@ async def provider_google_shopping(query: str) -> list[Offer]:
         },
     )
 
-    #print("\n\n===== GOOGLE SHOPPING RAW RESPONSE =====")
-    #import json
-    #print(json.dumps(data, indent=2))
-    #print("========================================\n\n")
-
     results = data.get("shopping_results") or []
     offers: list[Offer] = []
+
     print("Number of results:", len(results))
+
     for r in results:
         price = parse_price(r.get("extracted_price") or r.get("price"))
         if price is None:
             continue
 
-        # Prefer real store URL (product_link), fall back to Serp's link
-        raw_link = r.get("product_link") or r.get("link")
-
-        # Skip Google redirect URLs
-        if raw_link and "google.com/shopping" in raw_link:
-            continue  # don't include garbage Google redirect URLs
-
-        link = raw_link
-
-        if not link:
-            # No usable link → skip this one so frontend never sees empty url
-            continue
-
         src = r.get("source")
         if isinstance(src, dict):
-            # SerpAPI sometimes puts store info in a dict
             source_domain = src.get("link") or src.get("name")
         else:
             source_domain = src
@@ -432,54 +372,43 @@ async def provider_google_shopping(query: str) -> list[Offer]:
         offers.append(
             {
                 "merchant": "google_shopping",
-                "source_domain": extract_domain(link) or source_domain,
+                "source_domain": source_domain,
                 "title": r.get("title") or "",
                 "price": float(price),
-                "url": link,
                 "thumbnail": r.get("thumbnail"),
                 "brand": r.get("brand"),
+                "url": None
             }
         )
 
     return offers
 
-async def provider_google_image(image_url: str) -> list[Offer]:
+async def provider_google_light_search(query: str) -> Optional[str]:
+    """
+    Given: "<domain> <product title>"
+    Use SerpAPI Google Light API to find REAL merchant product links.
+    Returns first organic result belonging to domain.
+    """
+
     data = await serp_get(
         "https://serpapi.com/search.json",
         {
-            "engine": "google_lens",
-            "url": image_url,
+            "engine": "google_light",
+            "q": query,
             "hl": "en",
             "gl": "us",
-        },
+        }
     )
 
-    results = data.get("visual_matches") or []
-    offers: list[Offer] = []
-    print("Number of results:", len(results))
+    domain = query.split(" ")[0].lower()
+    results = data.get("organic_results") or []
+
     for r in results:
-        price = parse_price(r.get("price") or r.get("extracted_price")) 
+        link = r.get("link")
+        if link and domain in link.lower():
+            return link  # first valid merchant URL
 
-        if price is None:
-            continue
-
-        link = r.get("product_link") or r.get("link")
-        if not link:
-            continue
-
-        offers.append(
-            {
-                "merchant": "google_image",
-                "source_domain": extract_domain(link),
-                "title": r.get("title") or "",
-                "price": float(price),
-                "url": link,
-                "thumbnail": r.get("thumbnail"),
-                "brand": r.get("source"),  # lens sometimes returns brand here
-            }
-        )
-    print("Results from provider google image", offers)
-    return offers
+    return None
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -502,118 +431,54 @@ async def walmart_search_page(query: str, page: int = 1):
             "no_cache": "true",
         },
     )
-    
 
-@app.post("/extension/find-walmart-deal")
-async def extension_find_walmart_deal(payload: ExtensionFullProduct):
+@app.post("/extension/find-deals")
+async def extension_find_deals(payload: ExtensionFullProduct):
     """
-    Called by the Chrome extension when user is on an Amazon product page.
+    NEW VERSION:
+    - No Google Lens
+    - Use only Google Shopping
+    - Keep url field (not clickable yet, but preserved)
+    - Remove redundant sanitizing logic
+    """
 
-    We receive basic Amazon product info (title, price, brand, thumbnail),
-    search Walmart via SerpAPI, pick the best matching Walmart item, and
-    return a simple deal comparison.
-    """
     if not SERPAPI_KEY:
         raise HTTPException(500, "SERPAPI_KEY not set")
 
-    amz_title = payload.title.strip()
-    if not amz_title:
-        raise HTTPException(400, "title is required")
+    if not payload.title or not payload.price:
+        raise HTTPException(400, "Missing title or price")
 
-    amz_price = float(payload.price)
-    amz_brand = payload.brand
+    # Build query: brand + title
+    query = f"{payload.brand} {payload.title}" if payload.brand else payload.title
 
-    # Build Walmart search query (brand + title usually works well)
-    search_kw = amz_title if not amz_brand else f"{amz_brand} {amz_title}"
-
+    # Google Shopping search
     try:
-        data = await walmart_search_page(search_kw, page=1)
-    except HTTPException as e:
-        # Bubble up SerpAPI errors as-is
-        raise e
-
-    wm_candidates = data.get("organic_results") or []
-    best = _pick_best_wm_by_title(
-        amz_title,
-        wm_candidates,
-        amz_brand=amz_brand,
-        min_similarity=80,
-        require_brand=bool(amz_brand),
-    )
-
-    if not best:
-        # No good Walmart match found
-        return {
-            "match_found": False,
-            "amazon": {
-                "asin": payload.asin,
-                "title": payload.title,
-                "price": amz_price,
-                "brand": payload.brand,
-                "thumbnail": payload.thumbnail,
-            },
-            "walmart": None,
-        }
-
-    wm_price = best["price"]
-    diff = amz_price - wm_price
-    savings_pct = diff / amz_price * 100 if amz_price > 0 else 0.0
-
-    return {
-        "match_found": True,
-        "amazon": {
-            "asin": payload.asin,
-            "title": payload.title,
-            "price": amz_price,
-            "brand": payload.brand,
-            "thumbnail": payload.thumbnail,
-        },
-        "walmart": {
-            "product_id": best["product_id"],
-            "title": best["title"],
-            "price": wm_price,
-            "thumbnail": best["thumbnail"],
-            "link": best["link"],
-            "sim": best["sim"],
-        },
-        "savings_abs": round(diff, 2),
-        "savings_pct": round(savings_pct, 2),
-    }
-
-#finds by image
-@app.post("/extension/find-deals-by-image")
-async def find_deals_by_image(payload: ExtensionFullProduct):
-    if not SERPAPI_KEY:
-        raise HTTPException(500, "SERPAPI_KEY not set")
-
-    # Accept thumbnail as fallback if image_url is missing
-    img_url = (payload.image_url or payload.thumbnail or "").strip() or None
-
-
-    gimg = []
-    if img_url:
-        try:
-            gimg = await provider_google_image(img_url)
-        except Exception:
-            gimg = []
-
-    # Also do Walmart + Google Shopping queries if title is present
-    #wm_offers = []
-    gshop_offers = []
-    if payload.title:
-        query = f"{payload.brand} {payload.title}" if payload.brand else payload.title
-       # wm_offers = await provider_walmart(query, brand=payload.brand)
         gshop_offers = await provider_google_shopping(query)
+    except Exception as e:
+        print("Google Shopping ERROR:", e)
+        gshop_offers = []
 
-    # Combine all possible offers
-    all_offers = (gshop_offers + gimg)
-
-    # Score / normalize savings using shared logic
-    return await _score_offers_for_extension(payload, all_offers)
-
+    return await _score_offers_for_extension(payload, gshop_offers)
 
 
+@app.post("/extension/resolve-merchant-url")
+async def resolve_merchant_url(data: dict):
+    """
+    Called when user clicks SAVE in the Chrome extension.
+    Input:
+      { "source_domain": "walmart.com", "title": "Huggies Wipes 3 Pack" }
+    """
+    source_domain = data.get("source_domain")
+    title = data.get("title")
 
+    if not source_domain or not title:
+        raise HTTPException(400, "source_domain and title required")
+
+    query = f"{source_domain} {title}"
+
+    url = await provider_google_light_search(query)
+
+    return { "resolved_url": url }
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -696,73 +561,6 @@ def _pick_best_amz_by_title(
                 "raw_badge": it.get("badge"),
                 "sim": sim,
                 "thumbnail": it.get("thumbnail") or it.get("image"),
-            }
-
-    return best
-
-def _pick_best_wm_by_title(
-    amz_title: str,
-    wm_candidates: List[Dict[str, Any]],
-    *,
-    amz_brand: Optional[str],
-    min_similarity: int = 80,
-    require_brand: bool = False,
-) -> Optional[Dict[str, Any]]:
-    """
-    From a list of SerpAPI Walmart results, pick the best candidate for a given
-    Amazon title using RapidFuzz token_set_ratio, with optional brand + size checks.
-    """
-    best: Optional[Dict[str, Any]] = None
-    best_score = -1
-
-    for it in wm_candidates or []:
-        title = it.get("title") or ""
-        price_num = parse_price(
-            (it.get("primary_offer") or {}).get("offer_price")
-            or (it.get("primary_offer") or {}).get("price")
-            or it.get("price")
-        )
-        if not title or price_num is None:
-            continue
-
-        # Title similarity
-        sim = fuzz.token_set_ratio(amz_title, title)
-        if sim < min_similarity:
-            continue
-
-        # Optional brand check: require the Amazon brand to appear in WM title
-        if require_brand and amz_brand:
-            if not _brand_in_title(amz_brand, title):
-                continue
-
-        # Optional: size compatibility check; don't kill match if it fails,
-        # but penalize it a bit.
-        size_ok = sizes_compatible(amz_title, title)
-        penalty = 0 if size_ok else 8
-
-        # Sponsored or weird badges get a small penalty
-        sponsored = str(it.get("badge") or "").lower().find("sponsor") >= 0
-        penalty += 3 if sponsored else 0
-
-        adj = sim - penalty
-
-        if adj > best_score:
-            best_score = adj
-
-            pid = it.get("product_id")
-            raw_link = it.get("link") or ""
-            if not raw_link and pid:
-                raw_link = f"https://www.walmart.com/ip/{pid}"
-            if not raw_link and title:
-                raw_link = f"https://www.walmart.com/search?q={quote_plus(title)}"
-
-            best = {
-                "product_id": str(pid) if pid else None,
-                "title": title,
-                "price": price_num,
-                "link": raw_link,
-                "thumbnail": it.get("thumbnail") or it.get("image"),
-                "sim": sim,
             }
 
     return best
