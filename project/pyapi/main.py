@@ -596,15 +596,15 @@ async def find_deals_by_image(payload: ExtensionFullProduct):
             gimg = []
 
     # Also do Walmart + Google Shopping queries if title is present
-    wm_offers = []
+    #wm_offers = []
     gshop_offers = []
     if payload.title:
         query = f"{payload.brand} {payload.title}" if payload.brand else payload.title
-        wm_offers = await provider_walmart(query, brand=payload.brand)
+       # wm_offers = await provider_walmart(query, brand=payload.brand)
         gshop_offers = await provider_google_shopping(query)
 
     # Combine all possible offers
-    all_offers = (wm_offers + gshop_offers + gimg)[:50]
+    all_offers = (gshop_offers + gimg)[:50]
 
     # Score / normalize savings using shared logic
     return await _score_offers_for_extension(payload, all_offers)
