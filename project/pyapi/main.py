@@ -739,15 +739,14 @@ async def google_index_by_title(
 
         scored = await _score_offers_for_extension(payload, offers)
 
-        # TOP MATCH ONLY
-        top_match = scored["best_deals"][0] if scored["best_deals"] else None
+        best_deals = scored.get("best_deals") or []
+        top_match = best_deals[0] if best_deals else None
 
-        # Document to store
         doc = {
             "key_type": "asin",
             "key_val": asin,
             "checked_at": now_utc(),
-            "match_found": bool(top_match),
+            "match_found": len(best_deals) > 0,
             "amazon": {
                 "asin": asin,
                 "title": item.get("title"),
@@ -756,8 +755,11 @@ async def google_index_by_title(
                 "thumbnail": item.get("thumbnail"),
                 "image_url": item.get("image_url"),
             },
-            "best_match": top_match,
+            "best_match": top_match,      # keep for extension (unchanged)
+            "best_deals": best_deals,     # keep for extension (unchanged)
+            "offers": best_deals,         # NEW for dashboard
         }
+
 
         # Save result
         await MATCH.update_one(
@@ -798,14 +800,16 @@ async def deals_google(
     deals = []
 
     for m in matches:
-        best = m.get("best_match")
         amz = m.get("amazon")
+        offers = m.get("offers") or m.get("best_deals") or []
 
-        if not best or not amz:
+        if not amz or not offers:
             continue
 
+        # compute savings from BEST OFFER
+        top = offers[0]
         amz_price = float(amz["price"])
-        other_price = float(best["price"])
+        other_price = float(top["price"])
 
         savings_abs = amz_price - other_price
         if savings_abs < 2:
@@ -817,15 +821,17 @@ async def deals_google(
 
         deals.append({
             "amazon": amz,
-            "deal": best,
-            "savings_abs": savings_abs,
-            "savings_pct": round(pct * 100, 2)
+            "offers": offers,   # top-5 offers
         })
 
         if len(deals) >= limit:
             break
 
-    deals.sort(key=lambda d: d["savings_abs"], reverse=True)
+
+    deals.sort(
+    key=lambda d: float(d["amazon"]["price"]) - float(d["offers"][0]["price"]),
+    reverse=True
+    )
 
     return {"count": len(deals), "deals": deals[:limit]}
 

@@ -159,76 +159,39 @@ export default function Dashboard() {
           {dealsLoading && <div className="status">Loading deals…</div>}
 
           <div className="product-rows">
-          {deals.map((d, i) => {
-              // Python returns:
-              // { amazon: {...}, deal: {...}, savings_abs, savings_pct }
-
+            {deals.map((d, i) => {
               const amazon = d.amazon || {};
-              const gshop = d.deal   || {};  // Google Shopping best match
+              const offers = Array.isArray(d.offers) ? d.offers : [];
 
               const amzPrice = Number(amazon.price ?? 0);
-              const gsPrice  = Number(gshop.price ?? 0);
-
-              const diff = amzPrice - gsPrice;
-              const roi = gsPrice > 0 ? (diff / gsPrice) * 100 : 0;
-
               const amzThumb = amazon.thumbnail || FALLBACK_SVG;
-              const gsThumb  = gshop.thumbnail  || FALLBACK_SVG;
-
-              const roiClass =
-                roi > 0 ? "roi-pill positive" : roi < 0 ? "roi-pill negative" : "roi-pill neutral";
 
               return (
                 <div
                   className="product-row"
-                  key={amazon.asin || gshop.title || i}
-                  >
-                  {/* Row header: ROI & summary */}
+                  key={amazon.asin || i}
+                >
+                  {/* Header */}
                   <div className="row-header">
-                    <div className={roiClass}>{roi.toFixed(1)}% ROI</div>
+                    <div className="roi-pill neutral">Amazon Product</div>
                     <div className="row-header-meta">
-                      Difference:{" "}
+                      Category:{" "}
                       <span className="strong">
-                        ${diff.toFixed(2)}
+                        {selectedCategory || "—"}
                       </span>
                     </div>
                   </div>
 
+                  {/* Amazon block */}
                   <div className="row-body">
-                    {/* Left: images */}
                     <div className="product-media">
-                    <div className="thumb-pair">
-                        <div className="thumb-wrap small">
-                          <img src={gsThumb} alt={gshop.title} />
-                          <span className="thumb-label">Google</span>
-                        </div>
-
-                        <div className="thumb-wrap small">
-                          <img src={amzThumb} alt={amazon.title} />
-                          <span className="thumb-label">Amazon</span>
-                        </div>
+                      <div className="thumb-wrap small">
+                        <img src={amzThumb} alt={amazon.title} />
+                        <span className="thumb-label">Amazon</span>
                       </div>
                     </div>
 
-                    {/* Right: text + prices */}
                     <div className="product-info">
-                      {/* Google Shopping block */}
-                      <div className="side-block">
-                        <div className="side-header">MATCH</div>
-                        <div className="deal-title">
-                          {gshop.title || "Untitled Match"}
-                        </div>
-                        <div className="row price-row">
-                          <span className="label">Price</span>
-                          <span className="price">${gsPrice.toFixed(2)}</span>
-                        </div>
-                        {gshop.source_domain && (
-                          <div className="meta-row">Merchant: {gshop.source_domain}</div>
-                        )}
-                      </div>
-
-
-                      {/* Amazon block */}
                       <div className="side-block">
                         <div className="side-header">AMAZON</div>
                         <div className="deal-title">
@@ -239,19 +202,46 @@ export default function Dashboard() {
                           <span className="price">${amzPrice.toFixed(2)}</span>
                         </div>
                       </div>
-
-
-                      {/* Meta line */}
-                      <div className="meta-row">
-                        <span>
-                          Category:{" "}
-                          {selectedCategory || "—"}
-                        </span>
-                        {gshop.sim != null && (
-                          <span>Match score: {Number(gshop.sim).toFixed(0)}</span>
-                        )}
-                      </div>
                     </div>
+                  </div>
+
+                  {/* Offers Grid */}
+                  <div className="offers-grid">
+                    {offers.map((offer, j) => {
+                      const gsPrice = Number(offer.price ?? 0);
+                      const gsThumb = offer.thumbnail || FALLBACK_SVG;
+
+                      return (
+                        <div className="offer-card" key={j}>
+                          {/* Offer image */}
+                          <div className="thumb-wrap small">
+                            <img src={gsThumb} alt={offer.title} />
+                            <span className="thumb-label">
+                              {offer.source_domain || "Merchant"}
+                            </span>
+                          </div>
+
+                          {/* Offer info */}
+                          <div className="side-block" style={{ marginTop: "10px" }}>
+                            <div className="side-header">MATCH #{j + 1}</div>
+                            <div className="deal-title">{offer.title}</div>
+
+                            <div className="row price-row">
+                              <span className="label">Price</span>
+                              <span className="price">
+                                ${gsPrice.toFixed(2)}
+                              </span>
+                            </div>
+
+                            {offer.sim != null && (
+                              <div className="meta-row">
+                                Similarity: {Math.round(offer.sim)}%
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );
@@ -263,7 +253,7 @@ export default function Dashboard() {
           )}
         </div>
       </main>
-
+      
       <style jsx>{`
         :root {
           --card-bg: rgba(22, 16, 34, 0.78);
