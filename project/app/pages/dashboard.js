@@ -247,8 +247,8 @@ export default function Dashboard() {
                           Category:{" "}
                           {selectedCategory || "—"}
                         </span>
-                        {amz.sim != null && (
-                          <span>Match score: {Number(amz.sim).toFixed(0)}</span>
+                        {gshop.sim != null && (
+                          <span>Match score: {Number(gshop.sim).toFixed(0)}</span>
                         )}
                       </div>
                     </div>
