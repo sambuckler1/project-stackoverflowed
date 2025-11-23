@@ -245,7 +245,7 @@ export default function Dashboard() {
                       <div className="meta-row">
                         <span>
                           Category:{" "}
-                          {wm.category || selectedCategory || "—"}
+                          {selectedCategory || "—"}
                         </span>
                         {amz.sim != null && (
                           <span>Match score: {Number(amz.sim).toFixed(0)}</span>
