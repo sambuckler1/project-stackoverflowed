@@ -213,33 +213,34 @@ export default function Dashboard() {
 
                       return (
                         <div className="offer-card" key={j}>
-                          {/* Offer image */}
-                          <div className="thumb-wrap small">
-                            <img src={gsThumb} alt={offer.title} />
-                            <span className="thumb-label">
-                              {offer.source_domain || "Merchant"}
-                            </span>
+                          <div className="offer-left">
+                            <img src={gsThumb} alt={offer.title} className="offer-thumb" />
                           </div>
 
-                          {/* Offer info */}
-                          <div className="side-block" style={{ marginTop: "10px" }}>
-                            <div className="side-header">MATCH #{j + 1}</div>
-                            <div className="deal-title">{offer.title}</div>
-
-                            <div className="row price-row">
-                              <span className="label">Price</span>
-                              <span className="price">
-                                ${gsPrice.toFixed(2)}
-                              </span>
+                          <div className="offer-right">
+                            <div className="offer-header">
+                              <span className="offer-index">MATCH #{j + 1}</span>
+                              {offer.source_domain && (
+                                <span className="offer-merchant">{offer.source_domain}</span>
+                              )}
                             </div>
 
-                            {offer.sim != null && (
-                              <div className="meta-row">
-                                Similarity: {Math.round(offer.sim)}%
+                            <div className="offer-title">{offer.title}</div>
+
+                            <div className="offer-meta">
+                              <div className="offer-price">
+                                Price: <strong>${gsPrice.toFixed(2)}</strong>
                               </div>
-                            )}
+
+                              {offer.sim != null && (
+                                <div className="offer-sim">
+                                  Similarity: <strong>{Math.round(offer.sim)}%</strong>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
+
                       );
                     })}
                   </div>
@@ -598,6 +599,67 @@ export default function Dashboard() {
           justify-content: space-between;
           gap: 10px;
         }
+
+        .offer-card {
+          display: flex;
+          gap: 16px;
+          padding: 12px;
+          border-radius: 14px;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.08);
+          margin-top: 12px;
+          align-items: center;
+        }
+
+        .offer-left {
+          width: 120px;
+          min-width: 120px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .offer-thumb {
+          max-width: 100%;
+          max-height: 120px;   /* SAME HEIGHT AS AMAZON IMAGE */
+          object-fit: contain;
+          border-radius: 10px;
+          background: #ffffff;
+        }
+
+        .offer-right {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .offer-header {
+          display: flex;
+          justify-content: space-between;
+          font-size: 0.75rem;
+          font-weight: 700;
+          opacity: 0.85;
+          text-transform: uppercase;
+        }
+
+        .offer-title {
+          font-size: 0.95rem;
+          font-weight: 700;
+          line-height: 1.28;
+        }
+
+        .offer-meta {
+          display: flex;
+          gap: 20px;
+          font-size: 0.85rem;
+          opacity: 0.85;
+        }
+
+        .offer-price strong {
+          color: #c7d2fe;
+        }
+
 
         @media (max-width: 860px) {
           .row-body {
