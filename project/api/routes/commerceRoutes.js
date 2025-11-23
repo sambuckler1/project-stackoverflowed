@@ -105,40 +105,39 @@ router.post("/amazon/index-by-title", async (req, res) => {
 // ───────────────────────────────────────────────────────────────
 // Deals Route ✅ (Title-only, no UPC, no GPT filtering)
 // ───────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────
+// Deals Route (Category-based Google Shopping matching)
+// ───────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────
+// Deals Route (Amazon → Google Shopping)
+// ───────────────────────────────────────────────────────────────
 router.post("/deals", async (req, res) => {
   try {
-    const { category = "", min_abs, min_pct, min_sim, limit } = req.body || {};
+    const { category = "", limit } = req.body || {};
     if (!category) {
       return res.status(400).json({ error: "category is required" });
     }
 
-    const { amz_coll, wm_coll } = mapLabelToCollections(category);
-    const qs = new URLSearchParams({ amz_coll, wm_coll });
+    const slug = slugify(category);
+    const match_coll = `match_${slug}`;
 
-    // Optional filters
-    if (min_abs) qs.set("min_abs", String(min_abs));
-    if (min_pct) qs.set("min_pct", String(min_pct));
-    if (min_sim) qs.set("min_sim", String(min_sim));
-    if (limit) qs.set("limit", String(limit));
+    const qs = new URLSearchParams({ match_coll });
+    if (limit != null) qs.set("limit", String(limit));
 
-    // 🔹 Only call the title-based deal endpoint
-    const titleUrl = `${process.env.PYAPI_URL}/deals/by-title?${qs.toString()}`;
-    const titleRes = await fetch(titleUrl);
-    const payload = await forwardJsonOrText(titleRes);
+    const url = `${process.env.PYAPI_URL}/deals/google?${qs.toString()}`;
 
-    if (!titleRes.ok) {
-      return res.status(titleRes.status).json(payload);
-    }
+    const upstream = await fetch(url);
+    const payload = await forwardJsonOrText(upstream);
 
-    // 🔹 Use title-based deals as the final output
-    const deals = Array.isArray(payload.deals) ? payload.deals : [];
+    return res.status(upstream.status).json(payload);
 
-    return res.status(200).json({ deals });
   } catch (err) {
-    console.error("Proxy error (deals/title-only):", err);
-    return res.status(500).json({ error: "Failed to fetch deals" });
+    console.error("Proxy error (deals/google):", err);
+    return res.status(500).json({ error: "Failed to fetch Google deals" });
   }
 });
+
+
 
 
 // ───────────────────────────────────────────────────────────────

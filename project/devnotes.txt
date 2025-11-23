@@ -2,39 +2,6 @@ CMD COMMANDS TO POPULATE:
 API="https://diligent-spontaneity-production-d286.up.railway.app"
 Check API searches remaining: curl "https://serpapi.com/account?api_key=3260b492701e2eb0306baddb0477c88e3b3d428ea2cb8169960d8ca3d35f3b81"
 
-
-curl -s -X POST "$API/amazon/index-by-title?wm_coll=wm_christmas&amz_coll=amz_christmas" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "limit_items": 400,
-    "recache_hours": 24,
-    "max_serp_calls": 120,
-    "min_similarity": 90,
-    "require_brand": true,
-    "per_call_delay_ms": 350
-  }'
-
-Enrich with UPC:
-curl -s -X POST "$API/walmart/enrich-upc?limit=300"
-
-Find deals by UPC (populate amazon collection)
-curl -s -X POST "$API/amazon/index-upc" \
-  -H "Content-Type: application/json" \
-  -d '{"limit":400,"recache_hours":24}'
-
-Find deals by title (populate amazon collection)
-curl -s -X POST "$API/amazon/index-by-title" \
-  -H "Content-Type: application/json" \
-  -d '{"limit_items":400,"recache_hours":24,"max_serp_calls":120,"min_similarity":90,"require_brand":true,"per_call_delay_ms":350}' \
-
-Find deals by UPC
-curl -s "$API/deals/by-upc?min_abs=3&min_pct=0.15&limit=50"
-
-Find deals by title
-curl -s "$API/deals/by-title?min_abs=3&min_pct=0.15&min_sim=90&limit=50"
-
-
-
 RUN PYTHON ROUTES FOR CATEGORY TO CATEGORY SCRAPING:
 export PYAPI_URL="https://diligent-spontaneity-production-d286.up.railway.app"
 

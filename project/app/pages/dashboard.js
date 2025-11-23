@@ -91,7 +91,7 @@ export default function Dashboard() {
           {/* Tab navigation */}
           <nav className="tab-row">
             <Link href="/dashboard" className="tab-pill active">
-              <span className="tab-label">Product Finder</span>
+              <span className="tab-label">Deal Finder</span>
             </Link>
             <Link href="/amazon-dashboard" className="tab-pill">
               <span className="tab-label">Amazon Dashboard</span>
@@ -104,9 +104,9 @@ export default function Dashboard() {
            </Link>
           </nav>
 
-          <h1 className={`${spaceGrotesk.className} title`}>Product Finder</h1>
+          <h1 className={`${spaceGrotesk.className} title`}>Deal Finder</h1>
           <p className="subtitle">
-            Compare Walmart vs Amazon products, images, and pricing in one place.
+            Find deals for Amazon products (by category).
           </p>
 
           {/* Category selector */}
@@ -159,18 +159,21 @@ export default function Dashboard() {
           {dealsLoading && <div className="status">Loading deals…</div>}
 
           <div className="product-rows">
-            {deals.map((d, i) => {
-              const wm = d.wm || {};
-              const amz = d.amz || {};
+          {deals.map((d, i) => {
+              // Python returns:
+              // { amazon: {...}, deal: {...}, savings_abs, savings_pct }
 
-              const wmPrice = Number(wm.price ?? 0);
-              const amzPrice = Number(amz.price ?? 0);
+              const amazon = d.amazon || {};
+              const gshop = d.deal   || {};  // Google Shopping best match
 
-              const roi = wmPrice > 0 ? ((amzPrice - wmPrice) / wmPrice) * 100 : 0;
-              const diff = amzPrice - wmPrice;
+              const amzPrice = Number(amazon.price ?? 0);
+              const gsPrice  = Number(gshop.price ?? 0);
 
-              const wmThumb = wm.thumbnail || FALLBACK_SVG;
-              const amzThumb = amz.thumbnail || FALLBACK_SVG;
+              const diff = amzPrice - gsPrice;
+              const roi = gsPrice > 0 ? (diff / gsPrice) * 100 : 0;
+
+              const amzThumb = amazon.thumbnail || FALLBACK_SVG;
+              const gsThumb  = gshop.thumbnail  || FALLBACK_SVG;
 
               const roiClass =
                 roi > 0 ? "roi-pill positive" : roi < 0 ? "roi-pill negative" : "roi-pill neutral";
@@ -194,30 +197,14 @@ export default function Dashboard() {
                   <div className="row-body">
                     {/* Left: images */}
                     <div className="product-media">
-                      <div className="thumb-pair">
+                    <div className="thumb-pair">
                         <div className="thumb-wrap small">
-                          <img
-                            src={wmThumb}
-                            alt={wm.title || "Walmart product"}
-                            loading="lazy"
-                            referrerPolicy="no-referrer"
-                            onError={(e) => {
-                              e.currentTarget.src = FALLBACK_SVG;
-                            }}
-                          />
-                          <span className="thumb-label">Walmart</span>
+                          <img src={gsThumb} alt={gshop.title} />
+                          <span className="thumb-label">Google</span>
                         </div>
 
                         <div className="thumb-wrap small">
-                          <img
-                            src={amzThumb}
-                            alt={amz.title || "Amazon product"}
-                            loading="lazy"
-                            referrerPolicy="no-referrer"
-                            onError={(e) => {
-                              e.currentTarget.src = FALLBACK_SVG;
-                            }}
-                          />
+                          <img src={amzThumb} alt={amazon.title} />
                           <span className="thumb-label">Amazon</span>
                         </div>
                       </div>
@@ -225,41 +212,34 @@ export default function Dashboard() {
 
                     {/* Right: text + prices */}
                     <div className="product-info">
-                      {/* Walmart block */}
+                      {/* Google Shopping block */}
                       <div className="side-block">
-                        <div className="side-header">WALMART</div>
-                        <a
-                          className="deal-title"
-                          href={wm.link || "#"}
-                          target="_blank"
-                          rel="noreferrer"
-                          title={wm.title}
-                        >
-                          {wm.title || "Untitled Walmart product"}
-                        </a>
+                        <div className="side-header">MATCH</div>
+                        <div className="deal-title">
+                          {gshop.title || "Untitled Match"}
+                        </div>
                         <div className="row price-row">
                           <span className="label">Price</span>
-                          <span className="price">${wmPrice.toFixed(2)}</span>
+                          <span className="price">${gsPrice.toFixed(2)}</span>
                         </div>
+                        {gshop.source_domain && (
+                          <div className="meta-row">Merchant: {gshop.source_domain}</div>
+                        )}
                       </div>
+
 
                       {/* Amazon block */}
                       <div className="side-block">
                         <div className="side-header">AMAZON</div>
-                        <a
-                          className="deal-title"
-                          href={amz.link || "#"}
-                          target="_blank"
-                          rel="noreferrer"
-                          title={amz.title}
-                        >
-                          {amz.title || "Untitled Amazon product"}
-                        </a>
+                        <div className="deal-title">
+                          {amazon.title || "Untitled Amazon Product"}
+                        </div>
                         <div className="row price-row">
                           <span className="label">Price</span>
                           <span className="price">${amzPrice.toFixed(2)}</span>
                         </div>
                       </div>
+
 
                       {/* Meta line */}
                       <div className="meta-row">
