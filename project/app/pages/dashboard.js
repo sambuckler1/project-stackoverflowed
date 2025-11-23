@@ -181,8 +181,8 @@ export default function Dashboard() {
               return (
                 <div
                   className="product-row"
-                  key={`${wm.product_id || amz.asin || wm.link || i}`}
-                >
+                  key={amazon.asin || gshop.title || i}
+                  >
                   {/* Row header: ROI & summary */}
                   <div className="row-header">
                     <div className={roiClass}>{roi.toFixed(1)}% ROI</div>
