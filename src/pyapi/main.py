@@ -471,7 +471,7 @@ async def provider_google_search(
                         best = link
 
     # If we found a very confident result → return it
-    if best_score >= 0.85:
+    if best_score >= 0.4:
         return best
 
     # Otherwise return the known-safe Google Shopping link
