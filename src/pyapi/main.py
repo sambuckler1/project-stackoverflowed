@@ -381,19 +381,21 @@ async def provider_google_shopping(query: str) -> list[Offer]:
 
 import difflib
 
-async def provider_google_light_search(query: str, expected_title: str = "", expected_price: float = None) -> Optional[str]:
+async def provider_google_search(
+    query: str,
+    expected_title: str = "",
+    expected_price: float = None
+) -> Optional[str]:
     """
-    Improved resolver:
-    - Domain must match
-    - Title similarity must be high
-    - Price proximity must be close when available
-    Returns best-scoring product URL.
+    High-accuracy merchant URL resolver using SerpAPI Google Search:
+    1. Check shopping_results first (best for product URLs + prices)
+    2. Fallback to organic_results
     """
 
     data = await serp_get(
         "https://serpapi.com/search.json",
         {
-            "engine": "google_light",
+            "engine": "google",
             "q": query,
             "hl": "en",
             "gl": "us",
@@ -401,44 +403,82 @@ async def provider_google_light_search(query: str, expected_title: str = "", exp
     )
 
     domain = query.split(" ")[0].lower()
-    results = data.get("organic_results") or []
+    expected_title_norm = expected_title.lower().strip()
+
+    # --------------------------------------------------------
+    # 1. Try SHOPPING RESULTS first (best quality matches)
+    # --------------------------------------------------------
+    shopping = data.get("shopping_results") or []
 
     best_score = -1
     best_link = None
 
-    for r in results:
+    for r in shopping:
         link = r.get("link")
-        title = r.get("title", "").lower()
-        snippet = r.get("snippet", "")
+        title = (r.get("title") or "").lower()
+        price = parse_price(r.get("extracted_price") or r.get("price"))
+        source = (r.get("source") or "").lower()
 
-        if not link or domain not in link.lower():
+        if not link:
             continue
 
-        # ---------- TITLE SIMILARITY ----------
-        title_sim = difflib.SequenceMatcher(None, title, expected_title.lower()).ratio()
+        # Require domain match in source (stronger than organic)
+        if domain not in source:
+            continue
 
-        # ---------- PRICE SIMILARITY ----------
+        # Title similarity
+        title_sim = difflib.SequenceMatcher(None, title, expected_title_norm).ratio()
+
+        # Price similarity
         price_sim = 0
-        if expected_price is not None:
-            # Try to parse price from snippet, titles, or link
-            found_price = extract_price_from_text(title + " " + snippet)
-            if found_price:
-                # The closer the prices, the higher the score
-                diff_pct = abs(found_price - expected_price) / max(expected_price, 1)
-                price_sim = max(0, 1 - diff_pct)  # 1 = perfect match, 0 = far off
+        if expected_price and price:
+            diff_pct = abs(price - expected_price) / max(expected_price, 1)
+            price_sim = max(0, 1 - diff_pct)
 
-        # ---------- COMBINED SCORE ----------
-        score = (title_sim * 0.7) + (price_sim * 0.3)
+        score = (title_sim * 0.75) + (price_sim * 0.25)
 
         if score > best_score:
             best_score = score
             best_link = link
 
-    # Only accept if score is reasonable
-    if best_score >= 0.40:
+    # If high-confidence shopping result found → return it
+    if best_link and best_score >= 0.40:
         return best_link
-    
-    return None
+
+    # --------------------------------------------------------
+    # 2. FALLBACK: Organic Results (secondary quality)
+    # --------------------------------------------------------
+    organic = data.get("organic_results") or []
+
+    for r in organic:
+        link = r.get("link")
+        title = (r.get("title") or "").lower()
+        snippet = r.get("snippet", "")
+
+        if not link:
+            continue
+
+        if domain not in link.lower():
+            continue
+
+        # Title similarity
+        title_sim = difflib.SequenceMatcher(None, title, expected_title_norm).ratio()
+
+        # Price extraction from snippet
+        price_sim = 0
+        found_price = extract_price_from_text(title + " " + snippet)
+        if expected_price and found_price:
+            diff_pct = abs(found_price - expected_price) / max(expected_price, 1)
+            price_sim = max(0, 1 - diff_pct)
+
+        score = (title_sim * 0.70) + (price_sim * 0.30)
+
+        if score > best_score:
+            best_score = score
+            best_link = link
+
+    return best_link if best_score >= 0.40 else None
+
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -503,7 +543,11 @@ async def resolve_merchant_url(data: dict):
     query = f"{source_domain} {title}"
     expected_price = data.get("expected_price")
 
-    url = await provider_google_light_search(query, expected_title=title, expected_price=expected_price)
+    url = await provider_google_search(
+    query,
+    expected_title=title,
+    expected_price=expected_price
+)
 
     return { "resolved_url": url }
 
