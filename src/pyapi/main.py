@@ -384,42 +384,47 @@ import difflib
 async def provider_google_search(
     query: str,
     expected_title: str = "",
-    expected_price: float = None,
-    fallback_shopping_link: Optional[str] = None,
+    expected_price: float = None
 ) -> Optional[str]:
+    """
+    High-accuracy merchant URL resolver using SerpAPI Google Search:
+    1. Check shopping_results first (best for product URLs + prices)
+    2. Fallback to organic_results
+    """
 
+    data = await serp_get(
+        "https://serpapi.com/search.json",
+        {
+            "engine": "google",
+            "q": query,
+            "hl": "en",
+            "gl": "us",
+        }
+    )
+
+    domain = query.split(" ")[0].lower()
     expected_title_norm = expected_title.lower().strip()
-    merchant_domain = query.split(" ")[0].lower()
 
-    best = None
-    best_score = 0
+    # --------------------------------------------------------
+    # 1. Try SHOPPING RESULTS first (best quality matches)
+    # --------------------------------------------------------
+    shopping = data.get("shopping_results") or []
 
-    async def fetch(start: int):
-        return await serp_get(
-            "https://serpapi.com/search.json",
-            {
-                "engine": "google",
-                "q": query,
-                "hl": "en",
-                "gl": "us",
-                "num": 10,
-                "start": start,
-            }
-        )
+    best_score = -1
+    best_link = None
 
-    # Fetch three pages for robustness
-    pages = [
-        await fetch(0),
-        await fetch(10),
-        await fetch(20)
-    ]
+    for r in shopping:
+        link = r.get("link")
+        title = (r.get("title") or "").lower()
+        price = parse_price(r.get("extracted_price") or r.get("price"))
+        source = (r.get("source") or "").lower()
 
-    def score_candidate(title, link, snippet="", price=None):
-        title = (title or "").lower()
-        link = (link or "")
-        snippet = (snippet or "")
+        if not link:
+            continue
 
-        domain_ok = merchant_domain in link.lower()
+        # Require domain match in source (stronger than organic)
+        if domain not in source:
+            continue
 
         # Title similarity
         title_sim = difflib.SequenceMatcher(None, title, expected_title_norm).ratio()
@@ -430,52 +435,49 @@ async def provider_google_search(
             diff_pct = abs(price - expected_price) / max(expected_price, 1)
             price_sim = max(0, 1 - diff_pct)
 
-        score = title_sim * 0.75 + price_sim * 0.25
-        return score, domain_ok
+        score = (title_sim * 0.75) + (price_sim * 0.25)
 
-    # Extract all blocks across all pages
-    for data in pages:
-        blocks = {
-            "shopping_results": data.get("shopping_results") or [],
-            "inline_shopping_results": data.get("inline_shopping_results") or [],
-            "organic_results": data.get("organic_results") or [],
-            "ads": data.get("ads") or [],
-        }
+        if score > best_score:
+            best_score = score
+            best_link = link
 
-        for block_name, items in blocks.items():
-            for r in items:
-                link = r.get("link")
-                title = r.get("title") or r.get("source") or ""
-                snippet = r.get("snippet", "")
-                price = parse_price(r.get("extracted_price") or r.get("price"))
+    # If high-confidence shopping result found → return it
+    if best_link and best_score >= 0.40:
+        return best_link
 
-                if not link:
-                    continue
+    # --------------------------------------------------------
+    # 2. FALLBACK: Organic Results (secondary quality)
+    # --------------------------------------------------------
+    organic = data.get("organic_results") or []
 
-                score, domain_ok = score_candidate(title, link, snippet, price)
+    for r in organic:
+        link = r.get("link")
+        title = (r.get("title") or "").lower()
+        snippet = r.get("snippet", "")
 
-                # Block-specific thresholds (to avoid false positives)
-                if block_name in ("shopping_results", "inline_shopping_results"):
-                    if domain_ok and score >= 0.70 and score > best_score:
-                        best_score = score
-                        best = link
+        if not link:
+            continue
 
-                elif block_name == "organic_results":
-                    if domain_ok and score >= 0.85 and score > best_score:
-                        best_score = score
-                        best = link
+        if domain not in link.lower():
+            continue
 
-                elif block_name == "ads":
-                    if domain_ok and score >= 0.90 and score > best_score:
-                        best_score = score
-                        best = link
+        # Title similarity
+        title_sim = difflib.SequenceMatcher(None, title, expected_title_norm).ratio()
 
-    # If we found a very confident result → return it
-    if best_score >= 0.4:
-        return best
+        # Price extraction from snippet
+        price_sim = 0
+        found_price = extract_price_from_text(title + " " + snippet)
+        if expected_price and found_price:
+            diff_pct = abs(found_price - expected_price) / max(expected_price, 1)
+            price_sim = max(0, 1 - diff_pct)
 
-    # Otherwise return the known-safe Google Shopping link
-    return fallback_shopping_link
+        score = (title_sim * 0.70) + (price_sim * 0.30)
+
+        if score > best_score:
+            best_score = score
+            best_link = link
+
+    return best_link if best_score >= 0.40 else None
 
 
 
@@ -499,13 +501,6 @@ async def amazon_search_page(query: str, page: int = 1):
 
 @app.post("/extension/find-deals")
 async def extension_find_deals(payload: ExtensionFullProduct):
-    """
-    NEW VERSION:
-    - No Google Lens
-    - Use only Google Shopping
-    - Keep url field (not clickable yet, but preserved)
-    - Remove redundant sanitizing logic
-    """
 
     if not SERPAPI_KEY:
         raise HTTPException(500, "SERPAPI_KEY not set")
@@ -546,7 +541,6 @@ async def resolve_merchant_url(data: dict):
     query,
     expected_title=title,
     expected_price=expected_price,
-    fallback_shopping_link=data.get("shopping_link")  # pass the known link
 )
 
     return { "resolved_url": url }
