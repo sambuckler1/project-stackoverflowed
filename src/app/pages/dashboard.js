@@ -107,7 +107,8 @@ export default function Dashboard() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             source_domain: payload.matchSourceDomain,
-            title: payload.matchTitle
+            title: payload.matchTitle,
+            expected_price: payload.matchPrice
           }),
         }
       );

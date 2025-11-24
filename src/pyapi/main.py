@@ -56,9 +56,6 @@ class AmazonScrapeReq(BaseModel):
     pages: int = Field(1, ge=1, le=10)
     max_products: int = 100
 
-
-
-
 class Offer(TypedDict, total=False):
     merchant: str             # "walmart", "google_shopping", "woot", etc.
     source_domain: Optional[str]  # e.g. "woot.com", "microcenter.com"
@@ -382,11 +379,15 @@ async def provider_google_shopping(query: str) -> list[Offer]:
 
     return offers
 
-async def provider_google_light_search(query: str) -> Optional[str]:
+import difflib
+
+async def provider_google_light_search(query: str, expected_title: str = "", expected_price: float = None) -> Optional[str]:
     """
-    Given: "<domain> <product title>"
-    Use SerpAPI Google Light API to find REAL merchant product links.
-    Returns first organic result belonging to domain.
+    Improved resolver:
+    - Domain must match
+    - Title similarity must be high
+    - Price proximity must be close when available
+    Returns best-scoring product URL.
     """
 
     data = await serp_get(
@@ -402,11 +403,41 @@ async def provider_google_light_search(query: str) -> Optional[str]:
     domain = query.split(" ")[0].lower()
     results = data.get("organic_results") or []
 
+    best_score = -1
+    best_link = None
+
     for r in results:
         link = r.get("link")
-        if link and domain in link.lower():
-            return link  # first valid merchant URL
+        title = r.get("title", "").lower()
+        snippet = r.get("snippet", "")
 
+        if not link or domain not in link.lower():
+            continue
+
+        # ---------- TITLE SIMILARITY ----------
+        title_sim = difflib.SequenceMatcher(None, title, expected_title.lower()).ratio()
+
+        # ---------- PRICE SIMILARITY ----------
+        price_sim = 0
+        if expected_price is not None:
+            # Try to parse price from snippet, titles, or link
+            found_price = extract_price_from_text(title + " " + snippet)
+            if found_price:
+                # The closer the prices, the higher the score
+                diff_pct = abs(found_price - expected_price) / max(expected_price, 1)
+                price_sim = max(0, 1 - diff_pct)  # 1 = perfect match, 0 = far off
+
+        # ---------- COMBINED SCORE ----------
+        score = (title_sim * 0.7) + (price_sim * 0.3)
+
+        if score > best_score:
+            best_score = score
+            best_link = link
+
+    # Only accept if score is reasonable
+    if best_score >= 0.40:
+        return best_link
+    
     return None
 
 
@@ -470,8 +501,9 @@ async def resolve_merchant_url(data: dict):
         raise HTTPException(400, "source_domain and title required")
 
     query = f"{source_domain} {title}"
+    expected_price = data.get("expected_price")
 
-    url = await provider_google_light_search(query)
+    url = await provider_google_light_search(query, expected_title=title, expected_price=expected_price)
 
     return { "resolved_url": url }
 
@@ -601,6 +633,15 @@ async def _score_offers_for_extension(payload: ExtensionFullProduct, all_offers:
         },
         "best_deals": best_deals[:5],  # top 5
     }
+
+def extract_price_from_text(text: str) -> float:
+    matches = re.findall(r"\$\s?(\d+(?:\.\d+)?)", text)
+    if not matches:
+        return None
+    try:
+        return float(matches[0])
+    except:
+        return None
 
 
 

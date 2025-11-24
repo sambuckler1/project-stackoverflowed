@@ -256,7 +256,8 @@ function initPanel() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               source_domain: btn.dataset.matchsourcedomain,
-              title: btn.dataset.matchtitle
+              title: btn.dataset.matchtitle,
+              expected_price: parseFloat(btn.dataset.matchprice)
             }),
           });
 
