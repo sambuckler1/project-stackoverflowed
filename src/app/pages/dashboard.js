@@ -180,28 +180,25 @@ export default function Dashboard() {
             <Link href="/saved-products" className="tab-pill">
               <span className="tab-label">Saved</span>
            </Link>
-          </nav>
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              marginBottom: "1rem",
-            }}
-          >
-            <button
+           <button
               onClick={handleSignOut}
-              className="tab-pill"
               style={{
+                marginLeft: "auto",
+                padding: "8px 18px",
+                borderRadius: "999px",
                 background: "rgba(239,68,68,0.18)",
-                borderColor: "rgba(248,113,113,0.45)",
+                border: "1px solid rgba(248,113,113,0.45)",
                 color: "#fecaca",
+                fontSize: "0.85rem",
+                fontWeight: 700,
                 cursor: "pointer",
+                textTransform: "uppercase",
               }}
+              className="tab-pill"
             >
               <span className="tab-label">Sign Out</span>
             </button>
-          </div>
+          </nav>
 
           <h1 className={`${spaceGrotesk.className} title`}>Deal Finder</h1>
           <p className="subtitle">
