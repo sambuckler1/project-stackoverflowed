@@ -858,7 +858,7 @@ async def amazon_full_ingest(
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Clear Category endpoint (used for debugging and clearing category collections)
-# ─────────
+# ──────────────────────────────────────────────────────────────────────────────
 @app.delete("/debug/clear-category")
 async def clear_category(
     wm_coll: Optional[str] = Query(None),
