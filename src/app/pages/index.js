@@ -1,7 +1,6 @@
 import LoginButton from '../components/loginButton';
 import SignUpButton from '../components/signUpButton';
 import StarsBackground from '../components/StarsBackground';
-
 import { Space_Grotesk } from 'next/font/google';
 
 const spaceGrotesk = Space_Grotesk({

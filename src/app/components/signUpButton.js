@@ -4,7 +4,7 @@ export default function SignUpButton() {
   const router = useRouter();
 
   const handleClick = () => {
-    router.push('/signUpPage');
+    router.push('/signup');
   };
 
   return (

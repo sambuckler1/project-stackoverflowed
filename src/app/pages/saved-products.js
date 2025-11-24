@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { Space_Grotesk } from "next/font/google";
+import NavBar from "../components/navBar";
 
 const StarsBackground = dynamic(() => import("../components/StarsBackground"), {
   ssr: false,
@@ -82,22 +83,7 @@ export default function SavedProducts() {
 
       <main className="content">
         <div className="card">
-          {/* Tabs – same as Product Finder */}
-          <nav className="tab-row">
-            <Link href="/dashboard" className="tab-pill">
-              <span className="tab-label">Product Finder</span>
-            </Link>
-            <Link href="/amazon-dashboard" className="tab-pill">
-              <span className="tab-label">Amazon Dashboard</span>
-            </Link>
-            <Link href="/chat-bot" className="tab-pill">
-              <span className="tab-label">Chat Bot</span>
-            </Link>
-            <Link href="/saved-products" className="tab-pill active">
-              <span className="tab-label">Saved</span>
-            </Link>
-          </nav>
-
+          <NavBar />
           <h1 className={`${spaceGrotesk.className} title`}>Saved Products</h1>
 
           {/* Action buttons */}

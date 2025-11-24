@@ -130,7 +130,7 @@ export default function LoginPage() {
         {error && (
           <div className="error-popup" ref={popupRef}>
             <p>Login failed! You may not have an account.</p>
-            <button onClick={() => router.push("/signUpPage")}>
+            <button onClick={() => router.push("/signup-page")}>
               Click here to sign up
             </button>
           </div>

@@ -8,8 +8,8 @@ export default function Document() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
       <body>
-        <Main />        {/* Your page content */}
-        <NextScript />  {/* React scripts */}
+        <Main />        
+        <NextScript />  
       </body>
     </Html>
   );

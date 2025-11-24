@@ -6,7 +6,7 @@ export default function NavBar() {
 
   const handleSignOut = () => {
     localStorage.removeItem("authToken");
-    router.push("/loginPage");
+    router.push("/login");
   };
 
   const go = (path) => router.push(path);

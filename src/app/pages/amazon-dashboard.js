@@ -1,9 +1,9 @@
 // pages/amazon-dashboard.js  (or app/amazon-dashboard/page.js)
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import Link from "next/link";
 import Products from "./products";
 import { Space_Grotesk } from "next/font/google";
+import NavBar from "../components/navBar";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
@@ -61,19 +61,7 @@ export default function AmazonDashboard() {
 
       <main className="content">
         <div className="card">
-          {/* Tabs */}
-          <nav className="tab-row">
-            <Link href="/dashboard" className="tab-pill">
-              <span className="tab-label">Product Finder</span>
-            </Link>
-            <Link href="/amazon-dashboard" className="tab-pill active">
-              <span className="tab-label">Amazon Dashboard</span>
-            </Link>
-            <Link href="/chat-bot" className="tab-pill">
-              <span className="tab-label">Chat Bot</span>
-            </Link>
-          </nav>
-
+          <NavBar />
           <h1 className={`${spaceGrotesk.className} title`}>Amazon Dashboard</h1>
           <p className="subtitle">
             Welcome back — link your Amazon Seller (FBA) account to continue.

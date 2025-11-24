@@ -6,7 +6,7 @@ export default function LinkAccountButton() {
     const top = window.screen.height / 2 - height / 2;
 
     const amazonLoginUrl = `https://www.amazon.com/ap/oa
-      ?client_id=YOUR_CLIENT_ID                                 <-- CHANGE THIS
+      ?client_id=YOUR_CLIENT_ID                                
       &scope=sellingpartnerapi::migration
       &response_type=code
       &redirect_uri=http://localhost:5001/auth/callback`;

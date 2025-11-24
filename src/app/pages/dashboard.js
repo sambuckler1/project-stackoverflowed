@@ -1,7 +1,6 @@
 // pages/dashboard.js  (or app/dashboard/page.js)
 import { useState } from "react";
 import dynamic from "next/dynamic";
-import Link from "next/link";
 import { Space_Grotesk } from "next/font/google";
 import { useRouter } from "next/router";
 import NavBar from "../components/navBar";
@@ -89,12 +88,6 @@ export default function Dashboard() {
     fetchDealsByCategory(cat);
   };
 
-  const handleSignOut = () => {
-    localStorage.removeItem("authToken");
-    router.push("/loginPage");
-  };
-
-
   const handleSave = async (payload) => {
     try {
       // 1. Get token
@@ -167,7 +160,7 @@ export default function Dashboard() {
 
       <main className="content">
         <div className="card">
-          <NavBar onSignOut={handleSignOut} />
+          <NavBar />
           <h1 className={`${spaceGrotesk.className} title`}>Deal Finder</h1>
           <p className="subtitle">
             Find deals for Amazon products (by category).

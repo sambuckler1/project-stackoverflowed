@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 const LOGIN_URL =
-  "https://project-stackoverflowed-production.up.railway.app/loginPage";
+  "https://project-stackoverflowed-production.up.railway.app/login";
 
 export default function LoginButton() {
   const [launching, setLaunching] = useState(false);

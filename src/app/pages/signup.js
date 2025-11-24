@@ -72,7 +72,7 @@ export default function Signup() {
 
       if (response.ok) {
         setMessage("Account created! Redirecting...");
-        setTimeout(() => router.push("/loginPage"), 1500);
+        setTimeout(() => router.push("/login"), 1500);
       } else {
         setMessage(data.message || "Something went wrong.");
       }
