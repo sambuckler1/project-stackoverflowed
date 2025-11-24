@@ -8,6 +8,10 @@ const API_BASE =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   "https://feisty-renewal-production.up.railway.app";
 
+const PY_API_BASE =
+    process.env.NEXT_PYAPI_URL ||
+    "https://diligent-spontaneity-production-d286.up.railway.app/";
+
 const StarsBackground = dynamic(() => import("../components/StarsBackground"), {
   ssr: false,
 });
@@ -97,7 +101,7 @@ export default function Dashboard() {
   
       // 3. Resolve merchant REAL URL
       const resolveRes = await fetch(
-        `${process.env.NEXT_PUBLIC_PYAPI_URL}/extension/resolve-merchant-url`,
+        `${PY_API_BASE}/extension/resolve-merchant-url`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
