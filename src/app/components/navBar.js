@@ -32,9 +32,9 @@ export default function NavBar() {
 
         <button
           className={router.pathname === "/ai-assistant" ? "nav-btn active" : "nav-btn"}
-          onClick={() => go("/chat-bot")}
+          onClick={() => go("/ai-assistant")}
         >
-          Chat Bot
+          Ai Assistant
         </button>
 
         <button
