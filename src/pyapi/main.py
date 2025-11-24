@@ -528,7 +528,7 @@ async def _score_offers_for_extension(payload: ExtensionFullProduct, all_offers:
         amz_units = max(1, amz_count)
         amz_unit_mode = "count"
 
-        amazon_hash = await compute_phash(payload.thumbnail or payload.image_url)
+    amazon_hash = await compute_phash(payload.thumbnail or payload.image_url)
 
     for o in all_offers:
         # ----- TEXT SIMILARITY -----
