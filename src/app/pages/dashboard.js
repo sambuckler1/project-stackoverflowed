@@ -3,6 +3,7 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Space_Grotesk } from "next/font/google";
+import { useRouter } from "next/router";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
@@ -22,6 +23,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export default function Dashboard() {
+  const router = useRouter();
   const CATEGORY_LABELS = [
     "Electronics",
     "Health & Wellness",
@@ -34,7 +36,7 @@ export default function Dashboard() {
     "Cleaning Supplies",
     "Hair Care",
     "Spices",
-    "non perishable food",
+    "Non Perishable Food",
     "Christmas",
   ];
 
@@ -85,6 +87,13 @@ export default function Dashboard() {
     setSelectedCategory(cat);
     fetchDealsByCategory(cat);
   };
+
+  const handleSignOut = () => {
+    localStorage.removeItem("authToken");
+    router.push("/loginPage");
+  };
+
+
   const handleSave = async (payload) => {
     try {
       // 1. Get token
@@ -172,6 +181,27 @@ export default function Dashboard() {
               <span className="tab-label">Saved</span>
            </Link>
           </nav>
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              marginBottom: "1rem",
+            }}
+          >
+            <button
+              onClick={handleSignOut}
+              className="tab-pill"
+              style={{
+                background: "rgba(239,68,68,0.18)",
+                borderColor: "rgba(248,113,113,0.45)",
+                color: "#fecaca",
+                cursor: "pointer",
+              }}
+            >
+              <span className="tab-label">Sign Out</span>
+            </button>
+          </div>
 
           <h1 className={`${spaceGrotesk.className} title`}>Deal Finder</h1>
           <p className="subtitle">
