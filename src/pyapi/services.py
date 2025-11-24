@@ -1,8 +1,8 @@
 import os, httpx, asyncio, random, difflib
 from typing import Optional, List
 from fastapi import HTTPException
-from .utils import parse_price, extract_price_from_text
-from .models import Offer
+from utils import parse_price, extract_price_from_text
+from models import Offer
 
 # Load API key from environment
 SERPAPI_KEY = os.getenv("SERPAPI_KEY")

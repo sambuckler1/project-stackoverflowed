@@ -4,9 +4,9 @@ from typing import Optional
 from motor.motor_asyncio import AsyncIOMotorClient
 import asyncio, os, re, random
 # Internal imports
-from .models import AmazonScrapeReq, ExtensionFullProduct
-from .services import amazon_search_page, provider_google_shopping, provider_google_search
-from .utils import now_utc, parse_price, _score_offers_for_extension
+from models import AmazonScrapeReq, ExtensionFullProduct
+from services import amazon_search_page, provider_google_shopping, provider_google_search
+from utils import now_utc, parse_price, _score_offers_for_extension
 
 # App + Environment Setup
 SERPAPI_KEY = os.getenv("SERPAPI_KEY")

@@ -5,7 +5,7 @@ import httpx
 from PIL import Image
 import imagehash
 from io import BytesIO
-from .models import ExtensionFullProduct, Offer
+from models import ExtensionFullProduct, Offer
 from rapidfuzz import fuzz
 
 # Regex Helpers
