@@ -81,7 +81,70 @@ export default function Dashboard() {
     setSelectedCategory(cat);
     fetchDealsByCategory(cat);
   };
-
+  const handleSave = async (payload) => {
+    try {
+      // 1. Get token
+      const authToken = localStorage.getItem("authToken");
+      if (!authToken) {
+        alert("You must be logged in to save.");
+        return;
+      }
+  
+      // 2. Button feedback
+      const btn = document.activeElement;
+      btn.textContent = "Saving...";
+      btn.disabled = true;
+  
+      // 3. Resolve merchant REAL URL
+      const resolveRes = await fetch(
+        `${process.env.NEXT_PUBLIC_PYAPI_URL}/extension/resolve-merchant-url`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            source_domain: payload.matchSourceDomain,
+            title: payload.matchTitle
+          }),
+        }
+      );
+  
+      const resolveData = await resolveRes.json();
+      const finalMerchantURL = resolveData.resolved_url || null;
+  
+      // 4. Save to Node backend
+      const saveRes = await fetch(`${API_BASE}/api/users/save-product`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + authToken,
+        },
+        body: JSON.stringify({
+          asin: payload.asin,
+  
+          amazonTitle: payload.amazonTitle,
+          amazonPrice: payload.amazonPrice,
+          amazonThumbnail: payload.amazonThumbnail,
+          amazonURL: payload.amazonURL,
+  
+          matchTitle: payload.matchTitle,
+          matchPrice: payload.matchPrice,
+          matchThumbnail: payload.matchThumbnail,
+          matchURL: finalMerchantURL,
+        }),
+      });
+  
+      if (!saveRes.ok) {
+        const err = await saveRes.json();
+        throw new Error(err.message || "Could not save product");
+      }
+  
+      btn.textContent = "Saved ❤️";
+    } catch (err) {
+      console.error(err);
+      alert("Error saving product");
+    }
+  };
+  
   return (
     <div className="dash-wrap">
       <StarsBackground count={240} />
@@ -231,13 +294,41 @@ export default function Dashboard() {
                               <div className="offer-price">
                                 Price: <strong>${gsPrice.toFixed(2)}</strong>
                               </div>
-
                               {offer.sim != null && (
                                 <div className="offer-sim">
                                   Similarity: <strong>{Math.round(offer.sim)}%</strong>
                                 </div>
                               )}
                             </div>
+                            <button
+                              className="save-btn"
+                              onClick={() =>
+                                handleSave({
+                                  asin: amazon.asin,
+                                  amazonTitle: amazon.title,
+                                  amazonPrice: amzPrice,
+                                  amazonThumbnail: amazon.thumbnail,
+                                  amazonURL: amazon.link || null,
+
+                                  matchTitle: offer.title,
+                                  matchPrice: gsPrice,
+                                  matchThumbnail: gsThumb,
+                                  matchSourceDomain: offer.source_domain
+                                })
+                              }
+                              style={{
+                                marginTop: "8px",
+                                padding: "6px 12px",
+                                borderRadius: "8px",
+                                background: "#8b5cf6",
+                                color: "white",
+                                border: "none",
+                                cursor: "pointer",
+                                fontWeight: 600,
+                              }}
+                            >
+                              Save
+                            </button>
                           </div>
                         </div>
 

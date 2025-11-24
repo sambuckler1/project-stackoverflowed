@@ -478,32 +478,7 @@ async def resolve_merchant_url(data: dict):
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Brand / title matching helpers for Amazon
-# ──────────────────────────────────────────────────────────────────────────────
-
-def _norm_brand(b: Optional[str]) -> Optional[str]:
-    """Normalize brand string: lowercase, remove non-alphanumerics, trim."""
-    if not b:
-        return None
-    b = re.sub(r"[^a-z0-9]+", " ", b.lower()).strip()
-    return b or None
-
-
-def _brand_in_title(brand: Optional[str], title: Optional[str]) -> bool:
-    """
-    Check if a (normalized) brand appears anywhere in the title, either
-    as a substring or by token overlap.
-    """
-    if not brand or not title:
-        return False
-
-    b = _norm_brand(brand)
-    t = re.sub(r"[^a-z0-9]+", " ", title.lower())
-    if not b:
-        return False
-
-    # loose contains and token-level matching
-    return b in t or any(tok and tok in t for tok in b.split())
-
+# ─────────────────────────────────────────────────────────────────────────────
 
 async def _score_offers_for_extension(payload: ExtensionFullProduct, all_offers: list[Offer]):
     best_deals = []
