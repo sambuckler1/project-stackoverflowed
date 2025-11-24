@@ -1,4 +1,4 @@
-// pages/amazon-dashboard.js  (or app/amazon-dashboard/page.js)
+// pages/amazon-dashboard.js
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Products from "./products";

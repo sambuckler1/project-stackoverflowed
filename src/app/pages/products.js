@@ -1,4 +1,3 @@
-// components/Products.jsx
 import { useEffect, useState } from 'react';
 
 const API_BASE =

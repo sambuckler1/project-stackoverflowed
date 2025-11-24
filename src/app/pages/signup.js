@@ -1,4 +1,4 @@
-// pages/signup.js  (or wherever your Signup lives)
+// pages/signup.js 
 import { useState } from "react";
 import { useRouter } from "next/router";
 import dynamic from "next/dynamic";

@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 const MONGO_URL = process.env.MONGO_URL;
-const MONGO_DB  = "MongoDB"; // <- keep this aligned with pyapi
+const MONGO_DB  = "MongoDB";
 
 const connectDB = async () => {
   try {

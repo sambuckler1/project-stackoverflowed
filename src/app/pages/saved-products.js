@@ -1,6 +1,5 @@
 // pages/saved-products.js
 import React, { useEffect, useState } from "react";
-import Link from "next/link";
 import dynamic from "next/dynamic";
 import { Space_Grotesk } from "next/font/google";
 import NavBar from "../components/navBar";

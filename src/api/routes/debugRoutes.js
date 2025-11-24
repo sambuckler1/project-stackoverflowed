@@ -23,10 +23,6 @@ router.get("/db/debug", async (_req, res) => {
   }
 });
 
-/*
-    Lightweight User model for debug-only purposes.
-    Uses strict: false to handle any schema shape in the "users" collection.
-*/
 const UserSchema = new mongoose.Schema({}, { strict: false });
 const User =
   mongoose.models.__DbgUser ||

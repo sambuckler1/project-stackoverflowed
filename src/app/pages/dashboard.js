@@ -1,4 +1,4 @@
-// pages/dashboard.js  (or app/dashboard/page.js)
+// pages/dashboard.js
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { Space_Grotesk } from "next/font/google";
