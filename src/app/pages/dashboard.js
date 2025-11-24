@@ -10,7 +10,7 @@ const API_BASE =
 
 const PY_API_BASE =
     process.env.NEXT_PYAPI_URL ||
-    "https://diligent-spontaneity-production-d286.up.railway.app/";
+    "https://diligent-spontaneity-production-d286.up.railway.app";
 
 const StarsBackground = dynamic(() => import("../components/StarsBackground"), {
   ssr: false,
