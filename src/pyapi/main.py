@@ -11,10 +11,9 @@ from rapidfuzz import fuzz
 from urllib.parse import quote_plus  # used for building Walmart links
 from typing import TypedDict, Optional # for Offer class
 from urllib.parse import quote_plus, urlparse #for url parsing
-import torch
-import clip
-import numpy as np
+# pHash image comparison
 from PIL import Image
+import imagehash
 from io import BytesIO
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -47,14 +46,6 @@ if not MONGO_URL:
 # Async MongoDB client
 client = AsyncIOMotorClient(MONGO_URL)
 db = client[MONGO_DB]
-
-# ──────────────────────────────────────────────────────────────────────────────
-# CLIP IMAGE MODEL (global singleton)
-# ──────────────────────────────────────────────────────────────────────────────
-
-print("Loading CLIP model...")
-CLIP_MODEL, CLIP_PREPROCESS = clip.load("ViT-B/32", device="cpu")
-print("CLIP model loaded.")
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Request models
@@ -217,6 +208,47 @@ def extract_domain(url: str) -> Optional[str]:
     except Exception:
         return None
 
+async def fetch_image_bytes(url: str) -> Optional[bytes]:
+    if not url:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as c:
+            r = await c.get(url)
+            if r.status_code == 200:
+                return r.content
+    except Exception:
+        return None
+    return None
+
+async def compute_phash(url: str) -> Optional[imagehash.ImageHash]:
+    """
+    Download image → compute pHash.
+    Returns ImageHash object or None.
+    """
+    data = await fetch_image_bytes(url)
+    if not data:
+        return None
+
+    try:
+        img = Image.open(BytesIO(data)).convert("RGB")
+        return imagehash.phash(img)
+    except Exception:
+        return None
+
+
+def phash_similarity(hash1, hash2) -> float:
+    """
+    Returns similarity percentage between two pHash values.
+    Lower hamming distance = more similar.
+    """
+    if not hash1 or not hash2:
+        return 0.0
+
+    # hamming distance ranges 0–64
+    dist = hash1 - hash2
+    sim = 1 - (dist / 64)
+    return max(0.0, min(1.0, sim)) * 100.0
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Text / size helpers for matching titles
 # ──────────────────────────────────────────────────────────────────────────────
@@ -377,47 +409,6 @@ async def provider_google_light_search(query: str) -> Optional[str]:
 
     return None
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Image Embedding + Similarity Helpers (CLIP)
-# ──────────────────────────────────────────────────────────────────────────────
-
-async def _fetch_image_bytes(url: str):
-    """Download image from URL and return bytes or None."""
-    if not url:
-        return None
-    try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            r = await client.get(url)
-            if r.status_code == 200:
-                return r.content
-    except Exception:
-        return None
-    return None
-
-
-async def image_embed(url: str):
-    """Return CLIP image embedding vector or None."""
-    img_bytes = await _fetch_image_bytes(url)
-    if not img_bytes:
-        return None
-    try:
-        img = Image.open(BytesIO(img_bytes)).convert("RGB")
-        img_input = CLIP_PREPROCESS(img).unsqueeze(0)
-
-        with torch.no_grad():
-            vec = CLIP_MODEL.encode_image(img_input).cpu().numpy()[0]
-        return vec
-    except Exception:
-        return None
-
-
-def image_similarity(vec_a, vec_b):
-    """Return cosine similarity between two CLIP vectors."""
-    if vec_a is None or vec_b is None:
-        return None
-    return float(np.dot(vec_a, vec_b) /
-                 (np.linalg.norm(vec_a) * np.linalg.norm(vec_b)))
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Walmart ingest (via SerpAPI)
@@ -520,11 +511,7 @@ async def _score_offers_for_extension(payload: ExtensionFullProduct, all_offers:
     amz_title_norm = norm(payload.title)
     amz_price = float(payload.price)
 
-    # Compute Amazon CLIP embedding
-    amazon_vec = await image_embed(payload.thumbnail or payload.image_url)
-
-
-    # precompute Amazon size / total units ---
+    # --- NEW: precompute Amazon size / total units ---
     amz_size = extract_size_and_count(payload.title)
     amz_grams = amz_size.get("grams")
     amz_count = amz_size.get("count") or 1
@@ -541,35 +528,34 @@ async def _score_offers_for_extension(payload: ExtensionFullProduct, all_offers:
         amz_units = max(1, amz_count)
         amz_unit_mode = "count"
 
+        amazon_hash = await compute_phash(payload.thumbnail or payload.image_url)
+
     for o in all_offers:
-        sim = fuzz.token_set_ratio(amz_title_norm, norm(o["title"]))
-        o["sim"] = sim
+        # ----- TEXT SIMILARITY -----
+        text_sim = fuzz.token_set_ratio(amz_title_norm, norm(o["title"]))
+        o["sim"] = text_sim
 
-        # CLIP image similarity for each offer
-        offer_vec = await image_embed(o.get("thumbnail"))
-        img_sim = image_similarity(amazon_vec, offer_vec)
-
-        # save for frontend / debugging
-        o["img_sim"] = img_sim
-
-        # combine both text + image similarity
-        # image similarity is 0–1, text sim is 0–100 → normalize text to 0–1
-        txt_sim_norm = sim / 100.0
-        combined_sim = (0.55 * txt_sim_norm) + (0.45 * (img_sim or 0))
-        o["combined_sim"] = combined_sim
-
-        # Reject very weak matches
-        if combined_sim < 0.40:
+        if text_sim < 60:
             continue
 
+        # ----- IMAGE SIMILARITY -----
+        offer_hash = await compute_phash(o.get("thumbnail"))
 
-        # soft threshold for extension UX
-        if sim < 70:
+        if amazon_hash and offer_hash:
+            img_sim = phash_similarity(amazon_hash, offer_hash)
+        else:
+            img_sim = 0.0
+
+        # Combined similarity (60% text, 40% image)
+        combined_sim = (text_sim * 0.6) + (img_sim * 0.4)
+
+        # Reject weak overall matches
+        if combined_sim < 55:
             continue
 
         price = o["price"]
 
-        # try to use price-per-unit normalization when sizes are comparable
+        # ----- PRICE SAVINGS LOGIC (unchanged) -----
         savings_abs: float
         savings_pct: float
 
@@ -584,37 +570,29 @@ async def _score_offers_for_extension(payload: ExtensionFullProduct, all_offers:
             if amz_unit_mode == "weight" and offer_grams:
                 offer_units = offer_grams * max(1, offer_count)
             elif amz_unit_mode == "count" and not offer_grams:
-                # Only use count-based comparison if neither side has weight info
                 offer_units = max(1, offer_count)
 
             if offer_units:
-                # Check that total quantity isn't wildly different
                 unit_ratio = min(amz_units, offer_units) / max(amz_units, offer_units)
-                # Require them to be at least ~60% similar in total quantity
                 if unit_ratio >= 0.6:
                     use_unit_normalization = True
 
         if use_unit_normalization and amz_units and offer_units:
-            # Normalize everything to "price per unit"
             amz_unit_price = amz_price / amz_units
             offer_unit_price = price / offer_units
 
             unit_savings = amz_unit_price - offer_unit_price
             if unit_savings <= 0:
-                # No savings on a per-unit basis
                 continue
 
-            # Express savings as if you bought the same total quantity as the Amazon listing
             savings_abs = unit_savings * amz_units
             savings_pct = (unit_savings / amz_unit_price) * 100 if amz_unit_price > 0 else 0.0
         else:
-            # Fallback: original raw-price comparison
             savings_abs = amz_price - price
             if savings_abs <= 0:
                 continue
             savings_pct = (savings_abs / amz_price) * 100 if amz_price > 0 else 0.0
 
-        # basic minimum savings filter
         if savings_abs < 2.0 and savings_pct < 5.0:
             continue
 
@@ -626,16 +604,16 @@ async def _score_offers_for_extension(payload: ExtensionFullProduct, all_offers:
             "url": o["url"],
             "thumbnail": o.get("thumbnail"),
             "brand": o.get("brand"),
-            "sim": sim,
+            "sim": text_sim,
+            "img_sim": img_sim,
+            "combined_sim": combined_sim,
             "savings_abs": savings_abs,
             "savings_pct": savings_pct,
         })
 
-    # Sort by COMBINED similarity first, THEN max savings
-    best_deals.sort(
-        key=lambda d: (d.get("combined_sim", 0), d["savings_abs"]),
-        reverse=True
-)
+
+    # Sort 
+    best_deals.sort(key=lambda d: (d["combined_sim"], d["savings_abs"]), reverse=True)
 
     return {
         "match_found": len(best_deals) > 0,
@@ -693,9 +671,25 @@ async def amazon_scrape_category(req: AmazonScrapeReq, amz_coll: Optional[str] =
             if not asin or not title or not price:
                 continue
 
-            if re.search(r"\b\d+\s*(pack|count|ct)\b", title.lower()):
+            # ---------------------------------------------------
+            # SKIP MULTI-PACK, COUNT, OR BULK LISTINGS
+            # ---------------------------------------------------
+            t = title.lower()
+
+            # skip “pack of X”
+            if "pack of" in t:
                 continue
-            if "pack of" in title.lower():
+
+            # skip "X pack", "X-pack", "X ct", "X count"
+            if re.search(r"\b\d+\s*(pack|ct|count)\b", t):
+                continue
+
+            # skip things like “3-in-1”, “4pk”, “2pk”, etc.
+            if re.search(r"\b\d+\s*pk\b", t):
+                continue
+
+            # Optional: skip size bundles like “2 x 16oz”
+            if re.search(r"\b\d+\s*x\s*\d+", t):
                 continue
 
             doc = {
@@ -708,8 +702,6 @@ async def amazon_scrape_category(req: AmazonScrapeReq, amz_coll: Optional[str] =
                 "link": link,
                 "updatedAt": now_utc(),
             }
-
-
 
             await AMZ.update_one(
                 {"asin": asin},
