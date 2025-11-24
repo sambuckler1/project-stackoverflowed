@@ -11,6 +11,11 @@ from rapidfuzz import fuzz
 from urllib.parse import quote_plus  # used for building Walmart links
 from typing import TypedDict, Optional # for Offer class
 from urllib.parse import quote_plus, urlparse #for url parsing
+import torch
+import clip
+import numpy as np
+from PIL import Image
+from io import BytesIO
 
 # ──────────────────────────────────────────────────────────────────────────────
 # App setup & configuration
@@ -42,6 +47,14 @@ if not MONGO_URL:
 # Async MongoDB client
 client = AsyncIOMotorClient(MONGO_URL)
 db = client[MONGO_DB]
+
+# ──────────────────────────────────────────────────────────────────────────────
+# CLIP IMAGE MODEL (global singleton)
+# ──────────────────────────────────────────────────────────────────────────────
+
+print("Loading CLIP model...")
+CLIP_MODEL, CLIP_PREPROCESS = clip.load("ViT-B/32", device="cpu")
+print("CLIP model loaded.")
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Request models
@@ -364,6 +377,47 @@ async def provider_google_light_search(query: str) -> Optional[str]:
 
     return None
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Image Embedding + Similarity Helpers (CLIP)
+# ──────────────────────────────────────────────────────────────────────────────
+
+async def _fetch_image_bytes(url: str):
+    """Download image from URL and return bytes or None."""
+    if not url:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            r = await client.get(url)
+            if r.status_code == 200:
+                return r.content
+    except Exception:
+        return None
+    return None
+
+
+async def image_embed(url: str):
+    """Return CLIP image embedding vector or None."""
+    img_bytes = await _fetch_image_bytes(url)
+    if not img_bytes:
+        return None
+    try:
+        img = Image.open(BytesIO(img_bytes)).convert("RGB")
+        img_input = CLIP_PREPROCESS(img).unsqueeze(0)
+
+        with torch.no_grad():
+            vec = CLIP_MODEL.encode_image(img_input).cpu().numpy()[0]
+        return vec
+    except Exception:
+        return None
+
+
+def image_similarity(vec_a, vec_b):
+    """Return cosine similarity between two CLIP vectors."""
+    if vec_a is None or vec_b is None:
+        return None
+    return float(np.dot(vec_a, vec_b) /
+                 (np.linalg.norm(vec_a) * np.linalg.norm(vec_b)))
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Walmart ingest (via SerpAPI)
@@ -466,7 +520,11 @@ async def _score_offers_for_extension(payload: ExtensionFullProduct, all_offers:
     amz_title_norm = norm(payload.title)
     amz_price = float(payload.price)
 
-    # --- NEW: precompute Amazon size / total units ---
+    # Compute Amazon CLIP embedding
+    amazon_vec = await image_embed(payload.thumbnail or payload.image_url)
+
+
+    # precompute Amazon size / total units ---
     amz_size = extract_size_and_count(payload.title)
     amz_grams = amz_size.get("grams")
     amz_count = amz_size.get("count") or 1
@@ -487,13 +545,31 @@ async def _score_offers_for_extension(payload: ExtensionFullProduct, all_offers:
         sim = fuzz.token_set_ratio(amz_title_norm, norm(o["title"]))
         o["sim"] = sim
 
+        # CLIP image similarity for each offer
+        offer_vec = await image_embed(o.get("thumbnail"))
+        img_sim = image_similarity(amazon_vec, offer_vec)
+
+        # save for frontend / debugging
+        o["img_sim"] = img_sim
+
+        # combine both text + image similarity
+        # image similarity is 0–1, text sim is 0–100 → normalize text to 0–1
+        txt_sim_norm = sim / 100.0
+        combined_sim = (0.55 * txt_sim_norm) + (0.45 * (img_sim or 0))
+        o["combined_sim"] = combined_sim
+
+        # Reject very weak matches
+        if combined_sim < 0.40:
+            continue
+
+
         # soft threshold for extension UX
         if sim < 70:
             continue
 
         price = o["price"]
 
-        # --- NEW: try to use price-per-unit normalization when sizes are comparable ---
+        # try to use price-per-unit normalization when sizes are comparable
         savings_abs: float
         savings_pct: float
 
@@ -555,8 +631,11 @@ async def _score_offers_for_extension(payload: ExtensionFullProduct, all_offers:
             "savings_pct": savings_pct,
         })
 
-    # Sort by absolute normalized savings, best first
-    best_deals.sort(key=lambda d: d["savings_abs"], reverse=True)
+    # Sort by COMBINED similarity first, THEN max savings
+    best_deals.sort(
+        key=lambda d: (d.get("combined_sim", 0), d["savings_abs"]),
+        reverse=True
+)
 
     return {
         "match_found": len(best_deals) > 0,
@@ -614,6 +693,11 @@ async def amazon_scrape_category(req: AmazonScrapeReq, amz_coll: Optional[str] =
             if not asin or not title or not price:
                 continue
 
+            if re.search(r"\b\d+\s*(pack|count|ct)\b", title.lower()):
+                continue
+            if "pack of" in title.lower():
+                continue
+
             doc = {
                 "asin": asin,
                 "title": title,
@@ -624,6 +708,8 @@ async def amazon_scrape_category(req: AmazonScrapeReq, amz_coll: Optional[str] =
                 "link": link,
                 "updatedAt": now_utc(),
             }
+
+
 
             await AMZ.update_one(
                 {"asin": asin},
