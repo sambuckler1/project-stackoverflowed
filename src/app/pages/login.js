@@ -124,7 +124,7 @@ export default function LoginPage() {
           <button
             type="button"
             className="swap-btn"
-            onClick={() => router.push("/signup-page")}
+            onClick={() => router.push("/signup")}
           >
             Create an Account
           </button>
