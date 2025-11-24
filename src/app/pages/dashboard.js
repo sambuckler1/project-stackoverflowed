@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Space_Grotesk } from "next/font/google";
 import { useRouter } from "next/router";
+import NavBar from "../components/navBar";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
@@ -166,40 +167,7 @@ export default function Dashboard() {
 
       <main className="content">
         <div className="card">
-          {/* Tab navigation */}
-          <nav className="tab-row">
-            <Link href="/dashboard" className="tab-pill active">
-              <span className="tab-label">Deal Finder</span>
-            </Link>
-            <Link href="/amazon-dashboard" className="tab-pill">
-              <span className="tab-label">Amazon Dashboard</span>
-            </Link>
-            <Link href="/chat-bot" className="tab-pill">
-              <span className="tab-label">Chat Bot</span>
-            </Link>
-            <Link href="/saved-products" className="tab-pill">
-              <span className="tab-label">Saved</span>
-           </Link>
-           <button
-              onClick={handleSignOut}
-              style={{
-                marginLeft: "auto",
-                padding: "8px 18px",
-                borderRadius: "999px",
-                background: "rgba(239,68,68,0.18)",
-                border: "1px solid rgba(248,113,113,0.45)",
-                color: "#fecaca",
-                fontSize: "0.85rem",
-                fontWeight: 700,
-                cursor: "pointer",
-                textTransform: "uppercase",
-              }}
-              className="tab-pill"
-            >
-              <span className="tab-label">Sign Out</span>
-            </button>
-          </nav>
-
+          <NavBar onSignOut={handleSignOut} />
           <h1 className={`${spaceGrotesk.className} title`}>Deal Finder</h1>
           <p className="subtitle">
             Find deals for Amazon products (by category).
