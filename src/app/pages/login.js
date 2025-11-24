@@ -74,11 +74,7 @@ export default function LoginPage() {
         setError(true);
         return;
       }
-  
-      // ⭐ STORE THE TOKEN FOR YOUR WEBSITE
       localStorage.setItem("authToken", data.token);
-  
-      // Continue to dashboard
       router.push("/dashboard");
   
     } catch (err) {
@@ -125,6 +121,13 @@ export default function LoginPage() {
               Login
             </button>
           </form>
+          <button
+            type="button"
+            className="swap-btn"
+            onClick={() => router.push("/signup-page")}
+          >
+            Create an Account
+          </button>
         </div>
 
         {error && (
@@ -216,6 +219,25 @@ export default function LoginPage() {
           cursor: pointer;
         }
 
+        .swap-btn {
+          width: 100%;
+          padding: 10px;
+          margin-top: 12px;
+          border: none;
+          border-radius: 10px;
+          background: rgba(255, 255, 255, 0.12);
+          color: #fff;
+          font-size: 16px;
+          font-weight: bold;
+          cursor: pointer;
+          transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .swap-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+          background: rgba(255, 255, 255, 0.18);
+        }
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(-10px); }
           to { opacity: 1; transform: translateY(0); }
