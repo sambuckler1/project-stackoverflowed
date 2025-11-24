@@ -18,7 +18,7 @@ export default function NavBar() {
           className={router.pathname === "/dashboard" ? "nav-btn active" : "nav-btn"}
           onClick={() => go("/dashboard")}
         >
-          Product Finder
+          Deal Finder
         </button>
 
         <button
