@@ -1,4 +1,3 @@
-// components/StarsBackground.jsx
 import React, { useMemo } from "react";
 
 function StarsBackground({
