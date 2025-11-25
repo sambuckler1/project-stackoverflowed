@@ -291,7 +291,6 @@ function initPanel() {
             matchTitle: btn.dataset.matchtitle,
             matchPrice: parseFloat(btn.dataset.matchprice),
             matchThumbnail: btn.dataset.matchthumbnail,
-            matchURL: realURL,
           };
 
           await fetch(`${NODE_API_BASE}/api/users/save-product`, {

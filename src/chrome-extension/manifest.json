@@ -20,8 +20,6 @@
     "web_accessible_resources": [
       {
         "resources": [
-          "inject/sidebar-frame.js",
-          "inject/styles.css",
           "panel.html",
           "panel.js",
           "stars.js",
