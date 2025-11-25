@@ -1,29 +1,32 @@
-// pages/dashboard.js
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { Space_Grotesk } from "next/font/google";
 import { useRouter } from "next/router";
 import NavBar from "../components/navBar";
 
+// Node backend 
 const API_BASE =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   "https://feisty-renewal-production.up.railway.app";
 
+// Python backend (for merchant URL resolution)
 const PY_API_BASE =
     process.env.NEXT_PYAPI_URL ||
     "https://diligent-spontaneity-production-d286.up.railway.app";
 
+// Starfield background
 const StarsBackground = dynamic(() => import("../components/StarsBackground"), {
   ssr: false,
 });
 
+// Page font
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
   weight: ["600", "700"],
 });
 
 export default function Dashboard() {
-  const router = useRouter();
+  //List of categories user can pick from
   const CATEGORY_LABELS = [
     "Electronics",
     "Health & Wellness",
@@ -40,11 +43,17 @@ export default function Dashboard() {
     "Christmas",
   ];
 
+  // Deals returned from backend
   const [deals, setDeals] = useState([]);
+
+  // Loading and status messages  
   const [dealsLoading, setDealsLoading] = useState(false);
   const [dealsMsg, setDealsMsg] = useState("");
+
+  // Currently selected category
   const [selectedCategory, setSelectedCategory] = useState("");
 
+  // Placeholder image for missing thumbnails
   const FALLBACK_SVG =
     "data:image/svg+xml;utf8," +
     encodeURIComponent(`
@@ -57,6 +66,7 @@ export default function Dashboard() {
       </svg>
     `);
 
+  // Fetch deals from backend when category is selected
   const fetchDealsByCategory = async (label) => {
     if (!label) return;
     setDealsLoading(true);
@@ -64,11 +74,14 @@ export default function Dashboard() {
     setDeals([]);
 
     try {
+      // Hit backend route with category passed through
       const r = await fetch(`${API_BASE}/api/commerce/deals`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ category: label }),
       });
+
+      // Get result 
       const j = await r.json();
       if (!r.ok) throw new Error(j?.error || j?.detail || "Failed to load deals");
 
@@ -82,27 +95,31 @@ export default function Dashboard() {
     }
   };
 
+  // Handles category change in dropdown  
   const onCategoryChange = (e) => {
     const cat = e.target.value;
     setSelectedCategory(cat);
     fetchDealsByCategory(cat);
   };
 
+  // Handles saving a matched deal for the logged in user  
   const handleSave = async (payload) => {
     try {
-      // 1. Get token
+
+      // Ensure user is logged in by getting token
       const authToken = localStorage.getItem("authToken");
       if (!authToken) {
         alert("You must be logged in to save.");
         return;
       }
   
-      // 2. Button feedback
+      // Button feedback
       const btn = document.activeElement;
       btn.textContent = "Saving...";
       btn.disabled = true;
   
-      // 3. Resolve merchant REAL URL
+      // Resolve merchant REAL URL by hitting Python backend
+      // Pass in title, source domain, expected price    
       const resolveRes = await fetch(
         `${PY_API_BASE}/extension/resolve-merchant-url`,
         {
@@ -120,13 +137,14 @@ export default function Dashboard() {
       const resolveData = await resolveRes.json();
       const finalMerchantURL = resolveData.resolved_url || null;
   
-      // 4. Save to Node backend
+      // Store saved product to Node backend by hitting save-product route
       const saveRes = await fetch(`${API_BASE}/api/users/save-product`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: "Bearer " + authToken,
         },
+        // Pass in information with updated merchant url
         body: JSON.stringify({
           asin: payload.asin,
   
@@ -166,7 +184,6 @@ export default function Dashboard() {
             Find deals for Amazon products (by category).
           </p>
 
-          {/* Category selector */}
           <div className="actions" style={{ alignItems: "center", marginTop: "0.5rem" }}>
             <label
               style={{
@@ -228,7 +245,6 @@ export default function Dashboard() {
                   className="product-row"
                   key={amazon.asin || i}
                 >
-                  {/* Header */}
                   <div className="row-header">
                     <div className="roi-pill neutral">Amazon Product</div>
                     <div className="row-header-meta">
@@ -239,7 +255,6 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  {/* Amazon block */}
                   <div className="row-body">
                     <div className="product-media">
                       <div className="thumb-wrap small">
@@ -262,7 +277,6 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  {/* Offers Grid */}
                   <div className="offers-grid">
                     {offers.map((offer, j) => {
                       const gsPrice = Number(offer.price ?? 0);

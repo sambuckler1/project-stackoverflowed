@@ -1,3 +1,4 @@
+// Privacy policy page required by Amazon Seller Central
 export default function PrivacyPolicy() {
   return (
     <main style={{ padding: "2rem", maxWidth: "800px", margin: "0 auto", lineHeight: "1.6" }}>

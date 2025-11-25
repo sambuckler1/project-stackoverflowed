@@ -11,7 +11,7 @@ export default function LoginButton() {
     setLaunching(true);
     setTimeout(() => {
       window.location.href = LOGIN_URL;
-    }, 1000); // match takeoff duration
+    }, 1000);
   };
 
   return (

@@ -2,11 +2,11 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User'); 
 const router = express.Router();
+const jwt = require('jsonwebtoken');
+const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key-change-this";
 
-/*
-  POST /api/users/register
-  Registers a new user
-*/
+
+// Registers a new user and stores in DB with hashed password
 router.post('/register', async (req, res) => {
   try {
     const { username, email, password } = req.body;
@@ -32,13 +32,8 @@ router.post('/register', async (req, res) => {
   }
 });
 
-/*
-  POST /api/users/login
-  Logs in an existing user
-*/
-const jwt = require('jsonwebtoken');
-const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key-change-this";
-
+// Logs in an existing user by validating credentials and returning a JWT
+// Toekn is used by website and Chrome extension
 router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -49,6 +44,7 @@ router.post('/login', async (req, res) => {
     if (!user)
       return res.status(400).json({ message: 'Invalid username or password' });
 
+    // Compare input password with stored hash
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch)
       return res.status(400).json({ message: 'Invalid username or password' });
@@ -73,6 +69,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Returns a fresh JWT for the Chrome extension
 router.get("/extension-session", async (req, res) => {
   try {
     // If using cookie-session:
@@ -92,19 +89,7 @@ router.get("/extension-session", async (req, res) => {
   }
 });
 
-function authMiddleware(req, res, next) {
-  const token = req.headers.authorization?.split(" ")[1];
-  if (!token) return res.status(401).json({ message: "Missing token" });
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.userId = decoded.userId;
-    next();
-  } catch (err) {
-    return res.status(401).json({ message: "Invalid token" });
-  }
-}
-
+// Adds a saved deal to the user account, used by Chrome extension and website Deal Finder
 router.post("/save-product", authMiddleware, async (req, res) => {
   try {
     const {asin, amazonTitle, amazonPrice, amazonThumbnail, amazonURL, matchTitle, matchPrice, matchThumbnail, matchURL} = req.body;
@@ -126,7 +111,7 @@ router.get("/saved-products", authMiddleware, async (req, res) => {
   res.json({ products: user.savedProducts });
 });
 
-
+// Returns all saved deals for the logged in user
 router.post("/remove-saved-products", authMiddleware, async (req, res) => {
   const { asins } = req.body;
 
@@ -138,8 +123,18 @@ router.post("/remove-saved-products", authMiddleware, async (req, res) => {
   res.json({ success: true });
 });
 
+// Validates JWT attached to protected routes
+function authMiddleware(req, res, next) {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ message: "Missing token" });
 
-
-
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.userId = decoded.userId;
+    next();
+  } catch (err) {
+    return res.status(401).json({ message: "Invalid token" });
+  }
+}
 
 module.exports = router;

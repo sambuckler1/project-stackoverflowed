@@ -1,4 +1,3 @@
-// routes/commerceRoutes.js
 const express = require("express");
 const { fetch } = require("undici");
 const router = express.Router();

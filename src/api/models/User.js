@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
 
 // Define what a user document looks like in MongoDB
+// This includes username, password (hashed), email, and savedProducts
+// Also have fields for Amazon (LWA/SP-API), however not currently used
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   email:    { type: String, required: true, unique: true },
@@ -19,7 +21,6 @@ const userSchema = new mongoose.Schema({
       matchURL: String
     }
   ],
-
 
   amazon: {
     accessToken: String,

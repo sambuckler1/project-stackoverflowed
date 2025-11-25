@@ -3,15 +3,15 @@ import SignUpButton from '../components/signUpButton';
 import StarsBackground from '../components/StarsBackground';
 import { Space_Grotesk } from 'next/font/google';
 
+// Page font
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
-  weight: ['600', '700'], // for bold headings
+  weight: ['600', '700'],
 });
 
 export default function Home() {
   return (
     <div className="home-wrap">
-      {/* starfield behind everything */}
       <StarsBackground count={240} />
 
       <main className="content">
@@ -23,7 +23,6 @@ export default function Home() {
         </div>
       </main>
 
-      {/* page-specific styles */}
       <style jsx>{`
         .home-wrap {
           position: relative;
@@ -66,7 +65,6 @@ export default function Home() {
         }
       `}</style>
 
-      {/* global styles that fix the border */}
       <style jsx global>{`
         html, body, #__next {
           height: 100%;

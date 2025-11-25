@@ -1,3 +1,5 @@
+// Component for creating link account button for Amazon
+// Opens popup window pointing to amazons login + authorization page
 export default function LinkAccountButton() {
   const handleClick = () => {
     const width = 500;
@@ -11,7 +13,6 @@ export default function LinkAccountButton() {
       &response_type=code
       &redirect_uri=http://localhost:5001/auth/callback`;
 
-    // Opens popup window pointing to amazons login + authorization page
     window.open(
       amazonLoginUrl,
       'AmazonLogin',

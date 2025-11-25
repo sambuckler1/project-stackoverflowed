@@ -1,28 +1,32 @@
-// pages/saved-products.js
 import React, { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { Space_Grotesk } from "next/font/google";
 import NavBar from "../components/navBar";
 
+// Star background (client-only)
 const StarsBackground = dynamic(() => import("../components/StarsBackground"), {
   ssr: false,
 });
-
 const MemoStars = React.memo(StarsBackground);
 
+// Backend API URL
 const API_BASE =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   "https://feisty-renewal-production.up.railway.app";
 
+// Page Font
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
   weight: ["600", "700"],
 });
 
 export default function SavedProducts() {
+  //List of saved items from backend
   const [items, setItems] = useState([]);
+  //Tracks which items user clicked/selected
   const [selected, setSelected] = useState(new Set());
 
+  // Fallback placeholder image for missing thumbnails
   const FALLBACK_SVG =
     "data:image/svg+xml;utf8," +
     encodeURIComponent(`
@@ -35,7 +39,7 @@ export default function SavedProducts() {
       </svg>
     `);
 
-  // Load saved products for the logged-in user
+  // Load saved products for the logged-in user when the page loads
   useEffect(() => {
     const token =
       typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
@@ -49,12 +53,14 @@ export default function SavedProducts() {
       .catch((err) => console.error("Load saved products error", err));
   }, []);
 
+  // Toggle checkbox selection for each saved item
   const toggleSelect = (asin) => {
     const next = new Set(selected);
     next.has(asin) ? next.delete(asin) : next.add(asin);
     setSelected(next);
   };
 
+  // Remove selected saved item
   const removeSelected = async () => {
     if (selected.size === 0) return;
 
@@ -103,11 +109,8 @@ export default function SavedProducts() {
             </button>
           </div>
 
-          {/* Product rows – layout cloned from Product Finder */}
           <div className="product-rows">
             {items.map((p, i) => {
-              // These field names assume you’re storing a “match” object.
-              // Adjust to your schema if needed.
               const amzPrice = Number(p.amazonPrice ?? p.price ?? 0);
               const matchPrice = Number(p.matchPrice ?? 0);
 
@@ -130,7 +133,6 @@ export default function SavedProducts() {
                   className="product-row"
                   key={p.asin || p.id || i}
                 >
-                  {/* Checkbox overlay */}
                   <label className="checkbox-wrap">
                     <input
                       type="checkbox"
@@ -139,7 +141,6 @@ export default function SavedProducts() {
                     />
                   </label>
 
-                  {/* Row header: ROI + Difference */}
                   <div className="row-header">
                     <div className={roiClass}>{roi.toFixed(1)}% ROI</div>
                     <div className="row-header-meta">
@@ -148,9 +149,7 @@ export default function SavedProducts() {
                     </div>
                   </div>
 
-                  {/* Row body: images + info */}
                   <div className="row-body">
-                    {/* Left: images */}
                     <div className="product-media">
                       <div className="thumb-pair">
                         <div className="thumb-wrap small">
@@ -179,9 +178,7 @@ export default function SavedProducts() {
                       </div>
                     </div>
 
-                    {/* Right: text + prices */}
                     <div className="product-info">
-                      {/* Amazon block */}
                       <div className="side-block">
                         <div className="side-header">AMAZON</div>
                         <a
@@ -199,7 +196,6 @@ export default function SavedProducts() {
                         </div>
                       </div>
 
-                      {/* Match block */}
                       <div className="side-block">
                         <div className="side-header">MATCH</div>
                         <a
@@ -219,7 +215,6 @@ export default function SavedProducts() {
                         </div>
                       </div>
 
-                      {/* Meta line */}
                       <div className="meta-row">
                         <span>ASIN: {p.asin || "—"}</span>
                       </div>
@@ -236,7 +231,6 @@ export default function SavedProducts() {
         </div>
       </main>
 
-      {/* === STYLES: cloned from Product Finder and extended for checkboxes/actions === */}
       <style jsx>{`
         :root {
           --card-bg: rgba(22, 16, 34, 0.78);

@@ -1,25 +1,27 @@
-// pages/login.js
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import dynamic from "next/dynamic";
 
+// API backend for login requests
 const API_BASE =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   "https://feisty-renewal-production.up.railway.app";
 
-// Load the canvas only in the browser (avoids SSR crashes)
+// Starfield background (browser only)
 const StarsBackground = dynamic(() => import("../components/StarsBackground"), {
   ssr: false,
 });
 
 export default function LoginPage() {
   const router = useRouter();
+  //Form inputs
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  //Controls the error popup    
   const [error, setError] = useState(false);
   const popupRef = useRef(null);
 
-  // Draggable popup
+  // Make error popup draggable
   useEffect(() => {
     const popup = popupRef.current;
     if (!popup) return;
@@ -50,31 +52,39 @@ export default function LoginPage() {
     };
   }, [error]);
 
-  // Auto-dismiss
+  // Auto-dismiss popup after 5 seconds
   useEffect(() => {
     if (!error) return;
     const t = setTimeout(() => setError(false), 5000);
     return () => clearTimeout(t);
   }, [error]);
 
+  //Handler for login submission
   const handleLogin = async (e) => {
     e.preventDefault();
     setError(false);
   
     try {
+      // Send login request to backend Node route  
       const res = await fetch(`${API_BASE}/api/users/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
   
+      // Get response
       const data = await res.json();
   
+      // If invalid login, show popup
       if (!res.ok) {
         setError(true);
         return;
       }
+
+      // Save token returned
       localStorage.setItem("authToken", data.token);
+
+      // Send user to dashboard
       router.push("/dashboard");
   
     } catch (err) {
@@ -85,10 +95,8 @@ export default function LoginPage() {
 
   return (
     <div className="login-wrap">
-      {/* starfield behind everything */}
       <StarsBackground count={240} />
 
-      {/* content above the stars */}
       <main className="content">
         <div className="login-card">
           <h2>Login</h2>
@@ -140,7 +148,6 @@ export default function LoginPage() {
         )}
       </main>
 
-      {/* page styles */}
       <style jsx>{`
         .login-wrap {
           position: relative;
@@ -244,7 +251,6 @@ export default function LoginPage() {
         }
       `}</style>
 
-      {/* global fixes to avoid white border/flash */}
       <style jsx global>{`
         html, body, #__next {
           height: 100%;

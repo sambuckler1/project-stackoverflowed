@@ -1,15 +1,8 @@
-// routes/debugRoutes.js
-
 const express = require("express");
 const mongoose = require("mongoose");
 const router = express.Router();
 
-/*
-    GET /api/db/debug
-    Returns:
-    - The name of the currently connected MongoDB database
-    - A list of all collection names in that database
-*/
+// DB route which returns the name of currently connected MongoDB database, lists of all collection names in DB
 router.get("/db/debug", async (_req, res) => {
   try {
     const db = mongoose.connection.db;
@@ -28,13 +21,7 @@ const User =
   mongoose.models.__DbgUser ||
   mongoose.model("__DbgUser", UserSchema, "users");
 
-/*
-    GET /api/users/debug
-    Returns:
-    - DB name
-    - Total count of documents in "users"
-    - A sample user with username + email fields (if present)
-*/
+// DB route which returns the DB name, total count of "users", and a sample user with username + email fields
 router.get("/users/debug", async (_req, res) => {
   try {
     const dbName = mongoose.connection.db?.databaseName;
@@ -51,10 +38,7 @@ router.get("/users/debug", async (_req, res) => {
   }
 });
 
-/*
-    GET /api/users/exists?username=...
-    Checks if a user with the given username exists in the "users" collection.
-*/
+// Checks if a user with the given username exists in the "users" collection.
 router.get("/users/exists", async (req, res) => {
   try {
     const { username } = req.query;

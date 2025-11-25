@@ -1,18 +1,19 @@
-// pages/signup.js 
 import { useState } from "react";
 import { useRouter } from "next/router";
 import dynamic from "next/dynamic";
 import { Space_Grotesk } from "next/font/google";
 
+// Backend API base (Node server)
 const API_BASE =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   "https://feisty-renewal-production.up.railway.app";
 
-// Client-only load for the canvas background
+// Load animated star background (disabled during SSR)
 const StarsBackground = dynamic(() => import("../components/StarsBackground"), {
   ssr: false,
 });
 
+// Page font
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
   weight: ["600", "700"],
@@ -21,22 +22,28 @@ const spaceGrotesk = Space_Grotesk({
 export default function Signup() {
   const router = useRouter();
 
+  // Form state
   const [formData, setFormData] = useState({
     username: "",
     email: "",
     password: "",
     confirmPassword: "",
   });
+
+  // UI message (errors / success)
   const [message, setMessage] = useState("");
 
+  // Handle input changes in form
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Submit signup form
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Basic password strength requirement
     const passwordValid =
     /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/.test(
       formData.password
@@ -49,11 +56,13 @@ export default function Signup() {
       return;
     }
 
+    // Check for matching passwords
     if (formData.password !== formData.confirmPassword) {
       setMessage("Passwords do not match.");
       return;
     }
 
+    // Attempt account creation
     try {
       const response = await fetch(
         `${API_BASE}/api/users/register`,
@@ -71,9 +80,11 @@ export default function Signup() {
       const data = await response.json();
 
       if (response.ok) {
+        // Success, redirect to login
         setMessage("Account created! Redirecting...");
         setTimeout(() => router.push("/login"), 1500);
       } else {
+        // Failure, display backend error message  
         setMessage(data.message || "Something went wrong.");
       }
     } catch (err) {
@@ -84,10 +95,8 @@ export default function Signup() {
 
   return (
     <div className="signup-wrap">
-      {/* starfield behind everything */}
       <StarsBackground count={240} />
 
-      {/* content above stars */}
       <main className="content">
         <div className="card">
           <h2 className={`${spaceGrotesk.className} title`}>
@@ -140,7 +149,6 @@ export default function Signup() {
         </div>
       </main>
 
-      {/* page styles to match Home/Dashboard */}
       <style jsx>{`
         .signup-wrap {
           position: relative;
@@ -211,7 +219,6 @@ export default function Signup() {
         }
       `}</style>
 
-      {/* global fixes to avoid white border/flash, same as other pages */}
       <style jsx global>{`
         html,
         body,

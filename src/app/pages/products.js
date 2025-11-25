@@ -1,5 +1,6 @@
+// Example products page that can be implemented after approved for Amazon SP-API
+// Would load and display products from the user's FBA Amazon account
 import { useEffect, useState } from 'react';
-
 const API_BASE =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   "https://feisty-renewal-production.up.railway.app";

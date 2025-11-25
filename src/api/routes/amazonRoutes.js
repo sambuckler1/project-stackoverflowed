@@ -1,24 +1,22 @@
-// routes/amazonRoutes.js
-
-const express = require("express"); // Import express so we can create a router object
-const aws4 = require("aws4");       // For signing Amazon API requests
-const axios = require("axios");     // HTTP client for making API requests
-const https = require("https");     // Node's native HTTPS module (used with Axios)
+const express = require("express");
+const aws4 = require("aws4");       
+const axios = require("axios");  
+const https = require("https");   
 
 const router = express.Router();
 
-// LWA/SP-API state (in-memory for now; should be persisted per user/session later)
-let currentAccessToken = null; // LWA access token (short-lived)
-let refreshToken = null;       // Used to refresh Access Token. Should be saved in DB later
-let sellerId = null;           // The user's Amazon account ID
-let marketplaceId = null;      // Defines which geographical marketplace we're working in
+// LWA/SP-API State Notes:
+// currentAccessToeken: LWA access token (short-lived)
+// refreshToken: Used to refresh Access Token. Should be saved in DB later if SP-API setup
+// sellerId: The user's Amazon account ID
+// marketplaceID: Defines which geographical marketplace we're working in
+let currentAccessToken = null;
+let refreshToken = null;
+let sellerId = null;
+let marketplaceId = null;
 
-
-/*  ---------- LWA STEP 1 ----------
-    Route: GET /auth/login
-
+/*  LWA Step 1
     Sends the user to Amazon Seller Central to log in and authorize our app.
-
     ARGS:
         req = The request from Express. '_' means we're not using it
         res = The response, used to redirect the browser
@@ -28,12 +26,13 @@ router.get("/auth/login", async (_req, res) => {
     // Generates a random "state" string for security reasons. Prevents CSRF attacks (store & verify in production)
     const state = Math.random().toString(36).slice(2);
 
-    // Creates a set of query params that Amazon expects in the auth URL
+    // Creates a set of query params that Amazon expects in the auth URL,
+    // including identifier for our app in Seller Central, random string generated above, and version flag of LWA/SP-API
     const params = new URLSearchParams({
-      application_id: process.env.SP_APP_ID || "",      // Identifies our app in Seller Central
-      state,                                            // The random string generated above
+      application_id: process.env.SP_APP_ID || "",
+      state,
       redirect_uri: process.env.AMAZON_REDIRECT_URI || "",
-      version: "beta",                                  // LWA/SP-API app version flag
+      version: "beta",
     });
 
     // Sends the user's browser to Amazon's consent page with our params
@@ -47,12 +46,9 @@ router.get("/auth/login", async (_req, res) => {
 });
 
 
-/*  ---------- LWA STEP 2 ----------
-    Route: GET /auth/callback
-
+/*  LWA Step 2
     Handles the redirect back from Amazon after the user authorizes our app.
     Exchanges the temporary auth code for an access token + refresh token.
-
     ARGS:
         req = Contains query params from Amazon
         res = Used to redirect back to the frontend
@@ -66,10 +62,10 @@ router.get("/auth/callback", async (req, res) => {
     return res.status(400).send("No spapi_oauth_code provided");
 
   try {
-    // Build POST body for Amazon's token endpoint
+    // Build POST body for Amazon's token endpoint, inclduing code from Amazon redirect
     const body = new URLSearchParams({
       grant_type: "authorization_code",
-      code: spapi_oauth_code,                          // Code from Amazon redirect
+      code: spapi_oauth_code,
       client_id: process.env.AMAZON_CLIENT_ID || "",
       client_secret: process.env.AMAZON_CLIENT_SECRET || "",
       redirect_uri: process.env.AMAZON_REDIRECT_URI || "",
@@ -100,12 +96,9 @@ router.get("/auth/callback", async (req, res) => {
 });
 
 
-/*
-    Helper function:
-    Signs and sends a GET request to an SP-API sandbox endpoint.
-*/
+// Signs and sends a GET request to an SP-API sandbox endpoint
 async function signedGetSandbox(path, accessToken) {
-  const host = "sandbox.sellingpartnerapi-na.amazon.com"; // Sandbox host (NA)
+  const host = "sandbox.sellingpartnerapi-na.amazon.com";
   const region = "us-east-1";
 
   const reqOpts = {
@@ -133,15 +126,7 @@ async function signedGetSandbox(path, accessToken) {
 
   return data;
 }
-
-
-/*
-    Route: GET /spapi/sandbox-check
-
-    Quick sandbox check to:
-    - Call a test SP-API endpoint
-    - Grab sellerId and marketplaceId for later calls
-*/
+// Sandbox test route check to call a test SP-API endpoint, and grab sellerId/marketplaceId for later calls
 router.get("/spapi/sandbox-check", async (_req, res) => {
   if (!currentAccessToken) {
     return res.status(401).json({ error: "Login first via /auth/login" });
@@ -176,15 +161,7 @@ router.get("/spapi/sandbox-check", async (_req, res) => {
   }
 });
 
-
-/*
-    Route: GET /spapi/products
-
-    Example sandbox route:
-    - Uses Listings Items API
-    - Requires sellerId and marketplaceId (from /spapi/sandbox-check)
-    - Mainly used to verify signing + headers and end-to-end flow
-*/
+// Sandbox test route which uses Listing Items API, requires sellerId and marketplaceId
 router.get("/spapi/products", async (_req, res) => {
   if (!currentAccessToken) {
     return res.status(401).json({ error: "Login first via /auth/login" });
@@ -216,5 +193,4 @@ router.get("/spapi/products", async (_req, res) => {
   }
 });
 
-// Exports the router so it can be imported and mounted in app.js
 module.exports = router;
