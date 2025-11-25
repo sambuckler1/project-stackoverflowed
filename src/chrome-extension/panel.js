@@ -1,20 +1,27 @@
+// Base URLs for backend services
+// PY_API_BASE → FastAPI service (deal finding + URL resolving)
+// NODE_API_BASE → Node service (user accounts + saving products)
 const PY_API_BASE = "https://diligent-spontaneity-production-d286.up.railway.app";
 const NODE_API_BASE = "https://feisty-renewal-production.up.railway.app";
 
+// Checks if user is logged in and updates the UI accordingly
 async function refreshAuthUI() {
   const { authToken } = await chrome.storage.sync.get("authToken");
 
   const signInBtn = document.getElementById("btn-open-login");
   const logoutBar = document.getElementById("logout-bar");
-
+  // If authenticated, hide login button and show logout bar
   if (authToken) {
     signInBtn.style.display = "none";
     logoutBar.style.display = "block";
   } else {
+    // If not logged in, show login button
     signInBtn.style.display = "inline-block";
     logoutBar.style.display = "none";
   }
 }
+
+//Auth Event Listeners
 
 function initAuthListeners() {
   const loginModal = document.getElementById("login-modal");
@@ -23,14 +30,17 @@ function initAuthListeners() {
   const btnLogin = document.getElementById("btn-login");
   const btnLogout = document.getElementById("btn-logout");
 
+  // Open login modal
   btnOpen.addEventListener("click", () => {
     loginModal.style.display = "flex";
   });
 
+  // Close login modal
   btnCancel.addEventListener("click", () => {
     loginModal.style.display = "none";
   });
 
+  // Handle login request
   btnLogin.addEventListener("click", async () => {
     const username = document.getElementById("login-username").value.trim();
     const password = document.getElementById("login-password").value.trim();
@@ -53,7 +63,7 @@ function initAuthListeners() {
         alert(data.message || "Login failed");
         return;
       }
-
+      // Store token so extension can authenticate future requests
       await chrome.storage.sync.set({ authToken: data.token });
       alert("Logged in!");
       loginModal.style.display = "none";
@@ -63,6 +73,7 @@ function initAuthListeners() {
     }
   });
 
+  // Handle Logout  
   btnLogout.addEventListener("click", async () => {
     await chrome.storage.sync.remove("authToken");
     alert("Signed out");
@@ -72,7 +83,9 @@ function initAuthListeners() {
   refreshAuthUI();
 }
 
+// Panel Initialization
 function initPanel() {
+  // Pull query params passed from content script
   const params = new URLSearchParams(window.location.search);
 
   const asin = params.get("asin") || "";
@@ -85,6 +98,7 @@ function initPanel() {
 
   const app = document.getElementById("app");
 
+  // Truncate long titles for cleaner UI
   const safeTitle =
     title.length > 80 ? title.slice(0, 77).trimEnd() + "…" : title;
 
@@ -153,6 +167,7 @@ function initPanel() {
     results.textContent = "Searching for deals…";
 
     try {
+      // Call FastAPI deal matcher
       const res = await fetch(`${PY_API_BASE}/extension/find-deals`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
