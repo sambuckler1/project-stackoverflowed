@@ -3,7 +3,6 @@ const express = require("express");
 const { fetch } = require("undici");
 const router = express.Router();
 
-
 // Category to Collection mapping
 const slugify = (label) =>
   label
@@ -11,14 +10,6 @@ const slugify = (label) =>
     .replace(/&/g, "and")
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_|_$/g, "");
-
-const mapLabelToCollections = (label) => {
-  const slug = slugify(label || "");
-  return {
-    wm_coll: `wm_${slug}`,
-    amz_coll: `amz_${slug}`,
-  };
-};
 
 // Helper: Parse JSON OR fallback to readable error text
 async function forwardJsonOrText(upstreamRes) {
