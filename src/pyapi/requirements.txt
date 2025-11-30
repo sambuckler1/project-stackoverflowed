@@ -1,8 +1,8 @@
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
 pydantic==2.9.2
-motor==3.6.0          # 👈 async MongoDB driver (wraps pymongo)
-python-dotenv==1.0.1  # (if you use .env)
+motor==3.6.0
+python-dotenv==1.0.1 
 httpx
 rapidfuzz==3.9.6
 openai>=1.2.0

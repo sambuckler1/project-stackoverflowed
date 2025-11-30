@@ -22,7 +22,6 @@
         "resources": [
           "panel.html",
           "panel.js",
-          "stars.js",
           "panel.css",
           "login.html",
           "login.js",

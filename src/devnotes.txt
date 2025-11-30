@@ -1,141 +1,16 @@
 CMD COMMANDS TO POPULATE:
 API="https://diligent-spontaneity-production-d286.up.railway.app"
-Check API searches remaining: curl "https://serpapi.com/account?api_key=fcf139c00d30a6d950d0ce656e35f8b8d23f07b49f968057de8220925ede10f2"
+Check API searches remaining: curl "https://serpapi.com/account?api_key=d3abd377f47b16aa93480d85560cfad078571ca4ecdd4d07af094b61b7751a8e"
 
 RUN PYTHON ROUTES FOR CATEGORY TO CATEGORY SCRAPING:
 export PYAPI_URL="https://diligent-spontaneity-production-d286.up.railway.app"
 
-curl -X POST "$PYAPI_URL/walmart/scrape?wm_coll=wm_christmas" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "christmas",
-    "pages": 8,
-    "max_products": 400
-  }'
-
-curl -X POST "$PYAPI_URL/amazon/scrape?amz_coll=amz_christmas" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "christmas",
-    "pages": 4,
-    "max_products": 200
-  }'
-
-curl -X POST "$PYAPI_URL/wm-amz/match?wm_coll=wm_christmas&amz_coll=amz_christmas&match_coll=match_christmas" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "max_wm_items": 400,
-    "max_amz_items": 400,
-    "min_title_sim": 80,
-    "require_brand": false
-  }'
-
-Refined deals based on price:
-curl "$PYAPI_URL/wm-amz/matches?match_coll=match_hair_care&limit=50&min_diff=5&min_pct=0.2"
-Raw matches:
-curl "$PYAPI_URL/wm-amz/matches?match_coll=match_hair_care&limit=50"
-
 Clear a category:
 curl -X DELETE "$PYAPI_URL/debug/clear-category?match_coll=wm_christmas"
 
-backfill with links (necessary to run before running the matches route):
-curl -X POST "https://diligent-spontaneity-production-d286.up.railway.app/walmart/backfill-links?coll=wm_hair_care"
+curl -X POST "$PYAPI_URL/amazon/scrape-category?amz_coll=amz_health_and_wellness" \
+     -H "Content-Type: application/json" \
+     -d '{"query": "health and wellness", "pages": 4, "max_products": 100}'
 
 
-
-
-
-devnotes.txt
-Overview
-
-This project ingests Walmart product data, enriches it with UPCs, and then matches those UPCs against Amazon's catalog using the Amazon Selling Partner API (SP-API).
-- enriching upc's is done independently of grabbing the data from walmart because it exists in the PDP data, not the JSON returned from a normal serp search
-
-Goal: identify price arbitrage opportunities between Walmart and Amazon.
-Current Architecture (SerpAPI) 
-Step 1: Scrape Walmart items via SerpAPI (Google results for site:walmart.com + query).
-Step 2: For each Walmart product, run another SerpAPI query on Amazon.
-Step 3: Try to match titles/brands/prices.
-
-Problem: Consumed 1 SerpAPI request per product per platform → very expensive, limited quota. Also error-prone because of fuzzy title matches.
-
-New Architecture To be implemented (SP-API + UPC Matching) (***NOT IMPLEMENTED YET)
-We now rely on canonical identifiers:
-Walmart Scraper
-Ingest products from Walmart by category/query.
-Store in MongoDB with fields: title, price, brand, link, thumbnail, product_id, upc.
-UPC enrichment can happen via Walmart API responses (where available) or secondary scrapers.
-UPC → Amazon ASIN
-Use SP-API Catalog Items v2022-04-01 endpoint:
-
-GET /catalog/2022-04-01/items
-  ?identifiers=<UPC>
-  &identifiersType=UPC
-  &marketplaceIds=ATVPDKIKX0DER
-
-
-Returns ASIN(s) + attributes.
-Amazon Price Lookup
-With ASIN(s), call SP-API Product Pricing API to get current buybox price and offers.
-Deal Matching
-Compare Walmart price vs Amazon price.
-Expose through FastAPI (/deals/by-title, /deals/by-upc) and Node/Next.js frontend dashboard.
-
-Data Flow
-[Frontend Dashboard]
-      ↓
-[Node Backend (/api/amazon/...)]
-      ↓
-[FastAPI Python service (scrapers, deal engine)]
-      ↓
-[MongoDB]
-
-
-Dashboard: Triggers "Ingest Walmart" and "Find Deals".
-Node Backend: Forwards requests to FastAPI service.
-FastAPI: Handles scraping, enrichment, Amazon API queries, and deal logic.
-MongoDB: Stores Walmart items, Amazon cache, matched deals.
-
-Key Endpoints
-Walmart
-
-POST /walmart/scrape → scrape Walmart category/query.
-POST /walmart/enrich-upc?limit=100 → fill in missing UPCs for Walmart items.
-GET /walmart/items → view stored items.
-
-Amazon
-
-POST /index-by-title (legacy fuzzy match) → got rid of this, because title matching caused false comparisons (different sized items, bundle deals vs single, etc)
-POST /index-by-upc (new) → lookup ASINs via SP-API Catalog Items.
-GET /deals/by-upc → compare Walmart UPC vs Amazon ASINs.
-
-Why This Is Better
-
-No more SerpAPI bill blowups — SP-API is free (with limits).
-UPC is a canonical identifier → much higher accuracy than title fuzzy match.
-Scalable: One Walmart scrape → enrich UPCs → batch Amazon lookups.
-
-
-Dev Notes
-
-You need SP-API credentials:
-Seller Central account, app registration, LWA credentials, AWS IAM role.
-MarketplaceId for US: ATVPDKIKX0DER.
-Test mode: SP-API sandbox gives static data until you’re approved for live.
-
-Mongo collections:
-walmart_items
-amazon_cache (ASINs, UPC, pricing snapshot)
-deals
-
-Next Steps / TODO
-
-Implement index-by-upc in FastAPI (main.py). Fix this function, and fix /deals/by-upc (last 2 functions in main.py) this is likely where the problems are
-
-Update Node backend amazonRoutes.js to forward index-by-upc.
-
-Update dashboard to let users choose “Find Deals (UPC)” vs “Find Deals (Title)”.
-
-Add logging + retry for SP-API throttling (very likely).
-
-✅ With this setup, anyone coming in will understand that UPC is the golden key. Walmart gives us the UPC, Amazon SP-API resolves UPC → ASIN, then we pull price and compare. Much cleaner.
+curl -X POST "$PYAPI_URL/google-shopping/index-by-title?amz_coll=amz_health_and_wellness&match_coll=match_health_and_wellness" 

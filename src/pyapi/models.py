@@ -8,7 +8,6 @@ class AmazonScrapeReq(BaseModel):
     pages: int = Field(1, ge=1, le=10)
     max_products: int = 100
 
-
 # Offer structure returned from Google Shopping / Google Search providers
 # TypedDict is correct because this is NOT persisted and allows extra keys.
 class Offer(TypedDict, total=False):
