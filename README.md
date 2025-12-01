@@ -31,6 +31,8 @@ A list of features, function or non-functional, you would like to add in the fut
 * FastAPI + required Python dependencies (Uvicorn, etc)
 * Nodejs Frameworks (Express.js, Mongoose)
 
+### Testing
+Our project is hosted on Railway, and can be accessed by navigating to the link [FBAlgo Railway](https://project-stackoverflowed-production.up.railway.app/)
 ### Installing
 There are a few options to install our project, one through Railway (cloud hosting website we are using) one through using the Docker files, and one through just manually installing locally. The Railway approach only works if you are added as a "contributor" of the project through Railway. For this approach you would:
 1. Install the Railway CLI by running command curl -fsSL https://railway.com/install.sh | sh
